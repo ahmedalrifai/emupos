@@ -1,0 +1,36 @@
+name: Device or protocol request
+description: Ask for a printer, scale or scanner model, or a protocol emupos does not simulate yet.
+labels: [device-request]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Device type
+      options: [Receipt printer, Cash drawer, Weight scale, Barcode scanner, Other]
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Vendor and model
+      placeholder: e.g. CAS PD-II
+    validations:
+      required: true
+  - type: input
+    id: manual
+    attributes:
+      label: Link to the programming manual or protocol document
+      description: Only public documents. Do not attach documents you received under an NDA.
+  - type: dropdown
+    id: transport
+    attributes:
+      label: How it connects to the POS
+      multiple: true
+      options: [Network (TCP), Serial (RS-232 / USB-COM), USB, Bluetooth, Keyboard wedge, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Where it is used
+      description: Which POS software or markets use this device. It helps us prioritise.

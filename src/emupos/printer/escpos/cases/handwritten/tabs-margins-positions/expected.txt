@@ -1,0 +1,5 @@
+Item      Qty       Price
+Tea       2         3.00
+SPACED
+MARGIN AND WIDTH
+A                        B  C

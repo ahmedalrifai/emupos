@@ -1,0 +1,21 @@
+emupos
+Copyright 2026 emupos contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product includes data derived from third-party projects:
+
+- escpos-printer-db (https://github.com/receipt-print-hq/escpos-printer-db)
+  Printer capability data. Licensed under the Creative Commons
+  Attribution 4.0 International License (CC-BY-4.0).
+
+- ReceiptPrinterEncoder (https://github.com/NielsLeenheer/ReceiptPrinterEncoder)
+  Vendor code-page number mappings. Copyright (c) Niels Leenheer.
+  Licensed under the MIT License.
+
+This product includes font data derived from:
+
+- Spleen (https://github.com/fcambus/spleen)
+  Bitmap glyphs for receipt printer Fonts A and B (src/emupos/printer/escpos/fonts/).
+  Copyright (c) 2018-2026, Frederic Cambus. Licensed under the BSD 2-Clause License;
+  the full licence text is included at the top of each glyph table.

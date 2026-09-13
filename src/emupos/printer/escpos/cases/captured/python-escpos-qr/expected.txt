@@ -1,0 +1,2 @@
+Scan me
+[qr https://example.com]

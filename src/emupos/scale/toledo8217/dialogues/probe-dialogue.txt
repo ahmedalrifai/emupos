@@ -1,0 +1,3 @@
+# weight-scale spec, "Echo probe": Ehello
+> 45 68 65 6c 6c 6f
+< 02 45 0d 68 65 6c 6c 6f

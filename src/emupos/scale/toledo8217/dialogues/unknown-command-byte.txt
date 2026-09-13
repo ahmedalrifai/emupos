@@ -1,0 +1,6 @@
+# weight-scale spec, "Unrecognised commands": X gets bad command (bit 6), state unchanged
+@ set grams=1250 stable=true
+> 58
+< 02 3f 40 0d
+> 57
+< 02 30 31 2e 32 35 30 0d

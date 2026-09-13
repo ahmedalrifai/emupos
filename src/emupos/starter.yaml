@@ -1,0 +1,42 @@
+# emupos configuration. Reference: docs/configuration.md
+# Editor autocomplete: `emupos config schema > emupos.schema.json`
+schema: 1
+
+# Control API used by `emupos` commands and automated tests. Your POS never uses it.
+# api: { host: 127.0.0.1, port: 8765 }
+
+devices:
+  # Receipt printer with its cash drawer. Point your POS at 127.0.0.1:9100.
+  - id: front
+    type: printer
+    profile: epson-tm-t20iii # also: xprinter-xp80t, rongta-rp326, or a path to your own profile
+    connections:
+      - tcp: { port: 9100 }
+      # macOS/Linux: emupos creates a serial port and publishes it at $TMPDIR/emupos/front
+      # - serial: { pty: true }
+      # Windows: one end of a com0com virtual port pair (see docs/windows-serial.md)
+      # - serial: { port: COM5 }
+    # job_idle_timeout_ms: 2000
+    # receipts_dir: ./receipts
+    # drawer: { sensor_open_level: high }
+
+  # Weight scale speaking Toledo 8217 over serial.
+  # - id: deli
+  #   type: scale
+  #   profile: toledo8217-15kg
+  #   connections:
+  #     - serial: { pty: true } # Windows: serial: { port: COM5 }
+
+  # Keyboard-wedge scanner: types scans into the focused window.
+  # - id: lane1
+  #   type: scanner
+  #   mode: keyboard
+  #   suffix: enter # enter | tab | none
+  #   inter_key_delay_ms: 10
+
+  # Serial scanner: writes scans to a serial port.
+  # - id: lane2
+  #   type: scanner
+  #   mode: serial
+  #   connections:
+  #     - serial: { pty: true } # Windows: serial: { port: COM7 }

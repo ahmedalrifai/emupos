@@ -1,0 +1,18 @@
+# Xprinter XP-80T, 80 mm thermal receipt printer.
+# UNVERIFIED: the Arabic code-page number below comes from Xprinter spec sheets and a developer
+# forum, not a programming manual. If you own this printer, compare it with the self-test page
+# and open a "profile correction" issue.
+type: printer
+name: Xprinter XP-80T
+dpi: 203
+width_dots: 576
+font_a: { width: 12, height: 24 }
+font_b: { width: 9, height: 17 }
+code_pages:
+  0: PC437
+  22: PC864 # UNVERIFIED
+default_code_page: 0
+# Drawers differ; override per printer with `drawer: { sensor_open_level: low }` in emupos.yaml.
+drawer_sensor_open_level: high
+# Match the printer's configured serial interface settings.
+serial: { baud: 9600, data_bits: 8, parity: none, stop_bits: 1 }

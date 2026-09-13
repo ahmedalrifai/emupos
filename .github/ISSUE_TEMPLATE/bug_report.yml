@@ -1,0 +1,47 @@
+name: Bug report
+description: Something emupos does differs from the docs, the specs, or a real device.
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `emupos doctor --json`
+      render: json
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: emupos version (`emupos --version`)
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [Windows, macOS, Linux]
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Your emupos.yaml
+      render: yaml
+  - type: textarea
+    id: capture
+    attributes:
+      label: Bytes involved (if relevant)
+      description: The bytes your POS sent and what it received, as spaced hex, e.g. `10 04 01`.
+      render: text
+  - type: textarea
+    id: pos
+    attributes:
+      label: POS software or library
+      description: Which POS, library and version talks to emupos (e.g. python-escpos 3.1, Odoo 18).

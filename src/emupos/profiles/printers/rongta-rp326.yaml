@@ -1,0 +1,19 @@
+# Rongta RP326, 80 mm thermal receipt printer.
+# Code-page numbers: Rongta RP326 ESC/POS command set. Only the entries below are verified;
+# other code pages are not listed until someone confirms their numbers.
+type: printer
+name: Rongta RP326
+dpi: 203
+width_dots: 576
+font_a: { width: 12, height: 24 }
+font_b: { width: 9, height: 17 }
+code_pages:
+  0: PC437
+  22: PC864
+  27: PC720
+  34: WPC1256
+default_code_page: 0
+# Drawers differ; override per printer with `drawer: { sensor_open_level: low }` in emupos.yaml.
+drawer_sensor_open_level: high
+# Match the printer's configured serial interface settings.
+serial: { baud: 9600, data_bits: 8, parity: none, stop_bits: 1 }

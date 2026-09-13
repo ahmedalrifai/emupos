@@ -1,0 +1,4 @@
+# weight-scale spec, "Status reply when the weight cannot be reported": in motion (bit 0)
+@ set grams=1250 stable=false
+> 57
+< 02 3f 01 0d

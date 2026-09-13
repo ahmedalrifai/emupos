@@ -1,0 +1,27 @@
+# Epson TM-T20III, 80 mm thermal receipt printer.
+# Geometry: Epson TM-T20III technical reference (576 dots at 203 dpi; Font A 12x24, Font B 9x17).
+# Code-page numbers: Epson ESC/POS reference, "ESC t".
+type: printer
+name: Epson TM-T20III
+dpi: 203
+width_dots: 576
+font_a: { width: 12, height: 24 }
+font_b: { width: 9, height: 17 }
+code_pages:
+  0: PC437
+  2: PC850
+  3: PC860
+  4: PC863
+  5: PC865
+  16: WPC1252
+  17: PC866
+  18: PC852
+  19: PC858
+  32: PC720
+  37: PC864
+  50: WPC1256
+default_code_page: 0
+# Drawers differ; override per printer with `drawer: { sensor_open_level: low }` in emupos.yaml.
+drawer_sensor_open_level: high
+# Match the printer's configured serial interface settings.
+serial: { baud: 9600, data_bits: 8, parity: none, stop_bits: 1 }

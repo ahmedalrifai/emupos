@@ -1,0 +1,11 @@
+# Spikes are throwaway experiments (see spikes/README.md), not product code.
+extend = "../pyproject.toml"
+
+[lint]
+ignore = [
+    "E501",   # as in the root config: the formatter handles line length
+    "TID251", # design D2's I/O boundary applies to src/emupos, not to experiments
+    "S101",   # asserts are the self-checks
+    "S603",   # subprocess calls use fixed argument lists
+    "PT018",  # not pytest
+]
