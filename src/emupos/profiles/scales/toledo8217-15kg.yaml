@@ -1,0 +1,12 @@
+# Counter scale speaking the Mettler Toledo 8217 protocol, 15 kg x 5 g.
+# Wire contract as consumed by common POS clients (e.g. Odoo's public IoT scale driver).
+type: scale
+name: Toledo 8217 compatible, 15 kg
+protocol: toledo8217
+capacity_grams: 15000
+division_grams: 5
+# Weight replies in kilograms: 2 integer digits and 3 decimals, e.g. "01.250".
+reply_integer_digits: 2
+reply_decimals: 3
+settle_ms: 500
+serial: { baud: 9600, data_bits: 7, parity: even, stop_bits: 1 }

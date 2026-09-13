@@ -1,0 +1,18 @@
+name: Pull request title
+
+# Pull requests are squash-merged, so the title becomes the commit on main and drives the
+# version bump and changelog. It must follow Conventional Commits, e.g. `feat(scale): add tare`.
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  conventional-commits:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

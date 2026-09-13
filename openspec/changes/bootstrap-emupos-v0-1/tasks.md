@@ -8,22 +8,22 @@
 
 ## 2. Repository and tooling
 
-- [ ] 2.1 Rename the project to emupos in `README.md`; add `LICENSE` (Apache-2.0) and `NOTICE` (attribution for escpos-printer-db CC-BY-4.0 data and ReceiptPrinterEncoder MIT code-page mappings).
-- [ ] 2.2 Create `pyproject.toml`: hatchling build, `requires-python = ">=3.13"`, `emupos` console script, runtime dependencies with OS environment markers, and a wheel config that excludes `test_*.py` and fixture folders but includes built-in profiles.
-- [ ] 2.3 Configure ruff (format, lint, import sorting, `S` security rules) including the `banned-api` rule for `asyncio`, `socket`, `ctypes`, `termios` and `serial*`, with per-file ignores only for `transports/`, `api/` and `daemon.py`; verify a banned import outside those paths fails lint.
-- [ ] 2.4 Configure pyright strict and pytest (test discovery next to source, syrupy, Hypothesis as dev dependencies); `uv sync` then `uv run pytest` passes on an empty test.
-- [ ] 2.5 Create the D4 package layout with empty `__init__.py` files.
-- [ ] 2.6 Add `ci.yml`: Windows/macOS/Linux × Python 3.13/3.14 running ruff, pyright and pytest; a licence check that fails on GPL, LGPL or AGPL runtime dependencies; and a pull-request title check for Conventional Commits.
-- [ ] 2.7 Write `CONTRIBUTING.md`: setup with uv, the D15 code rules, how to add a device profile and a protocol, fixture formats (spaced hex, `>`/`<` dialogues), the dependency budget with a one-line justification per runtime dependency, and the Conventional Commits title format.
+- [x] 2.1 Rename the project to emupos in `README.md`; add `LICENSE` (Apache-2.0) and `NOTICE` (attribution for escpos-printer-db CC-BY-4.0 data and ReceiptPrinterEncoder MIT code-page mappings).
+- [x] 2.2 Create `pyproject.toml`: hatchling build, `requires-python = ">=3.13"`, `emupos` console script, runtime dependencies with OS environment markers, and a wheel config that excludes `test_*.py` and fixture folders but includes built-in profiles.
+- [x] 2.3 Configure ruff (format, lint, import sorting, `S` security rules) including the `banned-api` rule for `asyncio`, `socket`, `ctypes`, `termios` and `serial*`, with per-file ignores only for `transports/`, `api/` and `daemon.py`; verify a banned import outside those paths fails lint.
+- [x] 2.4 Configure pyright strict and pytest (test discovery next to source, syrupy, Hypothesis as dev dependencies); `uv sync` then `uv run pytest` passes on an empty test.
+- [x] 2.5 Create the D4 package layout with empty `__init__.py` files.
+- [x] 2.6 Add `ci.yml`: Windows/macOS/Linux × Python 3.13/3.14 running ruff, pyright and pytest; a licence check that fails on GPL, LGPL or AGPL runtime dependencies; and a pull-request title check for Conventional Commits.
+- [x] 2.7 Write `CONTRIBUTING.md`: setup with uv, the D15 code rules, how to add a device profile and a protocol, fixture formats (spaced hex, `>`/`<` dialogues), the dependency budget with a one-line justification per runtime dependency, and the Conventional Commits title format.
 
 ## 3. Configuration and events
 
-- [ ] 3.1 Pydantic models for `emupos.yaml` (schema, api, devices, connections, printer drawer settings, scanner options) that reject unknown keys and report errors with exact paths.
-- [ ] 3.2 Configuration discovery (`--config`, then `./emupos.yaml`), schema-version checks (newer schema fails with an upgrade message), defaults and relative-path resolution, and cross-field checks (duplicate ports and links, TCP port equal to the API port, keyboard scanner with connections).
-- [ ] 3.3 Device profile model and loader for built-in profiles and profile file paths; ship `epson-tm-t20iii`, `xprinter-xp80t` (Arabic code pages marked unverified), `rongta-rp326` and `toledo8217-15kg`.
-- [ ] 3.4 Built-in `--demo` configuration (printer on TCP 9100 and keyboard scanner everywhere; Toledo scale on a pty only on macOS/Linux).
-- [ ] 3.5 JSON Schema export from the models, and a test that the starter configuration and every built-in profile validate.
-- [ ] 3.6 Event types and in-process publish/subscribe (`events.py`) with the event names from the specs; each event carries type, device id, UTC timestamp and data.
+- [x] 3.1 Pydantic models for `emupos.yaml` (schema, api, devices, connections, printer drawer settings, scanner options) that reject unknown keys and report errors with exact paths.
+- [x] 3.2 Configuration discovery (`--config`, then `./emupos.yaml`), schema-version checks (newer schema fails with an upgrade message), defaults and relative-path resolution, and cross-field checks (duplicate ports and links, TCP port equal to the API port, keyboard scanner with connections).
+- [x] 3.3 Device profile model and loader for built-in profiles and profile file paths; ship `epson-tm-t20iii`, `xprinter-xp80t` (Arabic code pages marked unverified), `rongta-rp326` and `toledo8217-15kg`.
+- [x] 3.4 Built-in `--demo` configuration (printer on TCP 9100 and keyboard scanner everywhere; Toledo scale on a pty only on macOS/Linux).
+- [x] 3.5 JSON Schema export from the models, and a test that the starter configuration and every built-in profile validate.
+- [x] 3.6 Event types and in-process publish/subscribe (`events.py`) with the event names from the specs; each event carries type, device id, UTC timestamp and data.
 
 ## 4. Device connections
 

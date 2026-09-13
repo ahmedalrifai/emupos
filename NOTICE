@@ -1,0 +1,14 @@
+emupos
+Copyright 2026 emupos contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product includes data derived from third-party projects:
+
+- escpos-printer-db (https://github.com/receipt-print-hq/escpos-printer-db)
+  Printer capability data. Licensed under the Creative Commons
+  Attribution 4.0 International License (CC-BY-4.0).
+
+- ReceiptPrinterEncoder (https://github.com/NielsLeenheer/ReceiptPrinterEncoder)
+  Vendor code-page number mappings. Copyright (c) Niels Leenheer.
+  Licensed under the MIT License.
