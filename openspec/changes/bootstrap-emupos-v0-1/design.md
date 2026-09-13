@@ -26,7 +26,7 @@ Constraints: Apache-2.0; first-class support for Windows, macOS and Linux; the m
 - Payment terminals and customer displays.
 - USB-level device emulation (USB printer class, HID-POS scanners). This is not achievable in software alone.
 - Printer protocols other than raw ESC/POS: Epson ePOS-Print XML, Star StarPRNT/WebPRNT, LPD.
-- ESC/POS page mode, NV graphics (`GS ( L`) and PDF417.
+- ESC/POS page mode, NV graphics stored in the printer's non-volatile memory, and PDF417.
 - Rendering Arabic *text* sent through code pages. Raster images are rendered in this change; code-page glyph tables for Arabic are separate work.
 - Scale protocols other than Toledo 8217.
 - Keyboard-wedge scanning on Wayland; serial scanner mode covers those systems.
@@ -112,7 +112,7 @@ Test files (`test_*.py`) and fixtures live next to the code they test. The wheel
 1. An incremental tokenizer turns the byte stream into commands. A command split across reads waits for more bytes, and unknown bytes produce an `UnknownCommand` event instead of an exception, as real firmware skips them.
 2. Real-time commands (`DLE EOT`, `DLE ENQ`, `DLE DC4`) are handled before the print buffer. They are answered from current state even while printing is blocked by a fault.
 3. Everything else feeds a print model, which the renderer draws onto a 1-bit Pillow canvas at the profile's dot width.
-   - Command coverage in this change: text styles, alignment and sizes; feeds; cuts; `ESC p`; `GS v 0`; `ESC *`; `GS k` barcodes; `GS ( k` QR codes.
+   - Command coverage in this change: text styles, alignment and sizes; feeds; cuts; tabs, margins, print width and positioning; `ESC p`; `GS v 0`; `ESC *`; buffered `GS ( L` graphics; `GS k` barcodes; `GS ( k` QR codes.
    - Barcode and QR matrices come from python-barcode and segno, scaled to the requested module sizes.
 
 **Job boundaries.** A receipt ends at a cut command, when the connection closes, or after an idle timeout (default 2 s, configurable). Each finished job is stored as a PNG plus a text dump.

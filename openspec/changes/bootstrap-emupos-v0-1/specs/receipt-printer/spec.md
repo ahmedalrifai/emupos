@@ -137,7 +137,7 @@ When the printer processes GS r (`1d 72 n`), it SHALL reply with one byte comput
 
 ### Requirement: Supported print commands
 
-The printer SHALL process and render the following ESC/POS commands as defined by the Epson ESC/POS reference: initialise (ESC @, `1b 40`), which SHALL reset print settings to the profile defaults; printable text; line feed and paper feeds (LF `0a`, ESC d, ESC J) and line spacing (ESC 2, ESC 3); emphasis (ESC E) and underline (ESC -); font selection (ESC M); character size (GS !); justification (ESC a); cuts (GS V); the drawer kick (ESC p) with the effects defined by the cash-drawer capability; raster images (GS v 0); bit images (ESC *); barcodes (GS k); and QR codes (GS ( k). Page mode (ESC L), NV graphics (GS ( L) and PDF417 symbols (GS ( k with cn = 48) SHALL NOT be rendered: each such command SHALL be consumed in full, using its declared length where it has one, SHALL produce a `printer.command.unknown` event, and SHALL leave the printer in standard mode so that following commands render normally.
+The printer SHALL process and render the following ESC/POS commands as defined by the Epson ESC/POS reference: initialise (ESC @, `1b 40`), which SHALL reset print settings to the profile defaults; printable text; line feed and paper feeds (LF `0a`, ESC d, ESC J) and line spacing (ESC 2, ESC 3); emphasis (ESC E) and underline (ESC -); font selection (ESC M); character size (GS !); justification (ESC a); cuts (GS V); the drawer kick (ESC p) with the effects defined by the cash-drawer capability; raster images (GS v 0); bit images (ESC *); barcodes (GS k); QR codes (GS ( k); horizontal tabs (HT `09`) with tab positions (ESC D); right-side character spacing (ESC SP); left margin (GS L) and print area width (GS W); absolute and relative print positions (ESC $, ESC \\); and buffered graphics (GS ( L and GS 8 L functions 112 store raster graphics data and 50 print it). Page mode (ESC L), NV graphics stored in non-volatile memory (the other GS ( L functions) and PDF417 symbols (GS ( k with cn = 48) SHALL NOT be rendered: each such command SHALL be consumed in full, using its declared length where it has one, SHALL produce a `printer.command.unknown` event, and SHALL leave the printer in standard mode so that following commands render normally.
 
 #### Scenario: Initialise resets character size
 
@@ -150,6 +150,18 @@ The printer SHALL process and render the following ESC/POS commands as defined b
 - **WHEN** the POS sends `1d 28 6b 03 00 30 41 00` followed by `4f 4b 0a 1d 56 00`
 - **THEN** a `printer.command.unknown` event is emitted whose data contains the bytes `1d 28 6b 03 00 30 41 00`
 - **AND** the completed receipt's text is `OK`
+
+#### Scenario: Tabs align columns
+
+- **WHEN** the POS sends `1b 40 1b 44 0a 00 41 09 42 0a 1d 56 00`
+- **THEN** in the receipt image the cell of `B` starts at dot column 120 (tab position 10 × the 12-dot Font A cell)
+- **AND** no `printer.command.unknown` event is emitted
+
+#### Scenario: Buffered graphics print
+
+- **WHEN** the POS stores a 16 × 8 dot raster image with GS ( L function 112 and prints it with GS ( L function 50, then sends `1d 56 00`
+- **THEN** the receipt image contains the 16 × 8 dot image
+- **AND** no `printer.command.unknown` event is emitted
 
 #### Scenario: Page mode is not entered
 
