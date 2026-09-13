@@ -94,6 +94,7 @@ ignore = [
 "src/emupos/api/**" = ["TID251"]
 "src/emupos/daemon.py" = ["TID251"]
 "**/test_*.py" = ["S101"] # assert is how pytest tests work
+".github/scripts/**" = ["TID251", "S101", "S310", "S603"] # release tooling: fixed commands against localhost
 
 [tool.pyright]
 include = ["src"]
@@ -102,7 +103,8 @@ typeCheckingMode = "strict"
 reportMissingTypeStubs = false
 
 [tool.pytest.ini_options]
-testpaths = ["src"]
+testpaths = ["src", "scripts"]
+pythonpath = ["scripts"]
 python_files = ["test_*.py"]
 addopts = ["--import-mode=importlib", "--strict-markers"]
 asyncio_mode = "auto"

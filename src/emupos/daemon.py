@@ -386,7 +386,7 @@ async def run(loaded: LoadedConfig, on_started: Callable[[Simulator], None]) -> 
     except BaseException:
         api_socket.close()
         raise
-    from emupos.api.app import create_app
+    from emupos.api.app import create_app  # imported here: the API modules import this module
 
     config = uvicorn.Config(
         create_app(simulator),

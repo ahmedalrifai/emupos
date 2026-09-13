@@ -105,6 +105,21 @@ emupos keeps a small set of runtime dependencies, all permissively licensed (CI 
 | pyobjc-framework-Quartz (macOS only) | Posts keyboard-wedge keystrokes |
 | serialx (Windows only) | Asynchronous access to COM ports |
 
+## Generated files
+
+Two files are generated and checked in CI. Regenerate them in the same pull request as the change:
+
+```sh
+# after changing a command, option or help text
+uv run typer emupos.cli.app utils docs --name emupos --title "emupos command reference" --output docs/cli.md
+
+# after adding to the control API (new endpoints or fields are fine within /api/v1)
+uv run python scripts/check_api_compat.py            # must pass
+uv run python scripts/check_api_compat.py --update   # then record the new contract
+```
+
+The API check fails when an endpoint or field is removed, a field changes type, or a request field becomes required. Those changes need a new `/api/v2` instead.
+
 ## Pull requests
 
 Pull requests are squash-merged, and the title becomes the commit message that drives the version number and changelog. Use [Conventional Commits](https://www.conventionalcommits.org/):
