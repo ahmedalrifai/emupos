@@ -16,6 +16,8 @@ from emupos.api.app import create_app
 from emupos.config import LoadedConfig, parse_config
 from emupos.daemon import Simulator, StartupError, run
 from emupos.events import PublishedEvent
+from emupos.printer.printer import Printer
+from emupos.scale.scale import Scale
 
 POSIX = sys.platform != "win32"
 BASE_URL = "http://127.0.0.1:8765"
@@ -231,7 +233,9 @@ async def test_idle_timeout_is_driven_by_the_daemon_timer(
 
 async def test_drawer_kick_and_close(api: httpx.AsyncClient, simulator: Simulator) -> None:
     await print_bytes(simulator, bytes.fromhex("1b 70 00 19 fa"))
-    await wait_for(lambda: simulator.runtime("front").device.state().drawer == "open")  # type: ignore[union-attr]
+    printer = simulator.runtime("front").device
+    assert isinstance(printer, Printer)
+    await wait_for(lambda: printer.state().drawer == "open")
 
     assert (await api.post("/api/v1/devices/front/drawer/close")).status_code == 204
     assert (await api.post("/api/v1/devices/front/drawer/close")).status_code == 204
@@ -392,3 +396,33 @@ async def wait_for_http(client: httpx.AsyncClient) -> None:
                     return
             except httpx.TransportError:
                 await asyncio.sleep(0.05)
+
+
+@pytest.mark.skipif(
+    not POSIX, reason="existing serial device paths are supported on macOS and Linux"
+)
+async def test_scale_on_an_existing_serial_device_path(tmp_path: Path) -> None:
+    master, slave = os.openpty()  # stands in for a USB serial adapter such as /dev/ttyUSB0
+    path = os.ttyname(slave)
+    text = f"""
+schema: 1
+api: {{ port: {free_port()} }}
+devices:
+  - {{ id: deli, type: scale, profile: toledo8217-15kg, connections: [ {{ serial: {{ port: "{path}" }} }} ] }}
+"""
+    running = Simulator(parse_config(text, "test.yaml", tmp_path, sys.platform))
+    await running.start()
+    try:
+        scale = running.runtime("deli").device
+        assert isinstance(scale, Scale)
+        assert running.runtime("deli").endpoints[0].endpoint == path
+        running.set_weight(scale, 1250, stable=True)
+        os.set_blocking(master, False)
+        os.write(master, b"W")
+        reply = await read_serial(master, 8)
+    finally:
+        await running.stop()
+        os.close(master)
+        os.close(slave)
+
+    assert reply == bytes.fromhex("02 30 31 2e 32 35 30 0d")

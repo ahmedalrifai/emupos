@@ -1,6 +1,7 @@
 """Serial framing: the framing a device expects versus the framing a client set on a pty."""
 
 import asyncio
+import errno
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -48,26 +49,32 @@ def framing_mismatches(expected: SerialFraming, observed: ObservedFraming) -> tu
 def apply_framing(fd: int, framing: SerialFraming) -> None:
     """Set the terminal at `fd` to `framing`, leaving its other settings (such as raw mode) as they are."""
     if sys.platform == "win32":
-        raise NotImplementedError("serial framing can only be set on macOS and Linux ptys")
+        raise NotImplementedError("serial framing can only be set on macOS and Linux")
     attributes = termios.tcgetattr(fd)
-    cflag = attributes[2] & ~termios.CSTOPB
+    kept_bits = attributes[2] & (termios.CSIZE | termios.PARENB | termios.PARODD)
+    sizes = {5: termios.CS5, 6: termios.CS6, 7: termios.CS7, 8: termios.CS8}
+    cflag = attributes[2] & ~(termios.CSIZE | termios.PARENB | termios.PARODD | termios.CSTOPB)
+    # CLOCAL: a simulated device never waits for carrier detect, which real adapters may not wire.
+    cflag |= sizes[framing.data_bits] | termios.CLOCAL | termios.CREAD
+    if framing.parity != "none":
+        cflag |= termios.PARENB
+    if framing.parity == "odd":
+        cflag |= termios.PARODD
     if framing.stop_bits == 2:
         cflag |= termios.CSTOPB
-    # The Linux pty driver forces 8 data bits without parity, and glibc's tcsetattr can report
-    # that as EINVAL (seen when no other setting changed), so Linux keeps the driver's values.
-    if sys.platform != "linux":
-        sizes = {5: termios.CS5, 6: termios.CS6, 7: termios.CS7, 8: termios.CS8}
-        cflag &= ~(termios.CSIZE | termios.PARENB | termios.PARODD)
-        cflag |= sizes[framing.data_bits]
-        if framing.parity != "none":
-            cflag |= termios.PARENB
-        if framing.parity == "odd":
-            cflag |= termios.PARODD
     attributes[2] = cflag
     speed = getattr(termios, f"B{framing.baud}", None)
     if speed is not None:  # a non-standard rate keeps the current speed
         attributes[4] = attributes[5] = speed
-    termios.tcsetattr(fd, termios.TCSANOW, attributes)
+    try:
+        termios.tcsetattr(fd, termios.TCSANOW, attributes)
+    except termios.error as error:
+        # Linux ptys force 8 data bits without parity, and tcsetattr then fails with EINVAL if
+        # nothing else changed. Real UARTs honour the bits, so this retry only happens on ptys.
+        if sys.platform != "linux" or error.args[0] != errno.EINVAL:
+            raise
+        attributes[2] = cflag & ~(termios.CSIZE | termios.PARENB | termios.PARODD) | kept_bits
+        termios.tcsetattr(fd, termios.TCSANOW, attributes)
 
 
 def observe_framing(fd: int) -> ObservedFraming:

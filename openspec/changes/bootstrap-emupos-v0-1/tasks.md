@@ -30,7 +30,7 @@
 - [x] 4.1 TCP listener transport: bind (default 127.0.0.1), several simultaneous clients, replies routed to the requesting client, and a startup failure that names the port when it is unavailable.
 - [x] 4.2 pty transport (macOS/Linux): raw pty pair, slave kept open for reconnects, private link directory, stale link replacement, and link removal on shutdown; wrap as asyncio streams.
 - [x] 4.3 Serial framing observation: poll the host settings on the pty, emit `connection.framing-mismatch` once per distinct framing, and warn without blocking data (macOS: baud, data bits, parity; Linux: baud only).
-- [ ] 4.6 Existing serial device paths on macOS/Linux (`serial: { port: /dev/ttyUSB0 }`, tty0tty), opened raw with the profile's framing; and pty link ownership so a second `emupos run` cannot take over or delete a running simulator's link.
+- [x] 4.6 Existing serial device paths on macOS/Linux (`serial: { port: /dev/ttyUSB0 }`, tty0tty), opened raw with the profile's framing; and pty link ownership so a second `emupos run` cannot take over or delete a running simulator's link.
 - [ ] 4.4 Existing-port serial transport (Windows COM and any tty path) using the backend chosen in 1.1; a missing port fails startup with a message naming com0com and `emupos doctor`.
 - [x] 4.5 Connection events, clean shutdown on Ctrl+C that releases ports and links, and a binary transparency test sending all 256 byte values in both directions over TCP and pty.
 

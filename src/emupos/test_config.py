@@ -338,3 +338,9 @@ def test_demo_on_macos_includes_pty_scale(tmp_path: Path) -> None:
         "scale",
         "scanner",
     ]
+
+
+def test_link_name_must_not_end_in_pid() -> None:
+    text = "schema: 1\ndevices: [ { id: deli, type: scale, profile: toledo8217-15kg, connections: [ { serial: { pty: true, link: deli.pid } } ] } ]\n"
+
+    assert "`.pid`" in issues_of(text)["devices[0].connections[0].serial"]

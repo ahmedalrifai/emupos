@@ -141,6 +141,10 @@ class SerialEndpoint(_StrictModel):
             raise ValueError("a serial entry needs exactly one of `pty: true` or `port`")
         if self.link is not None and self.pty is None:
             raise ValueError("`link` is only allowed together with `pty: true`")
+        if self.link is not None and self.link.endswith(".pid"):
+            raise ValueError(
+                "a `link` name must not end in `.pid`; emupos uses that name for its own files"
+            )
         return self
 
 

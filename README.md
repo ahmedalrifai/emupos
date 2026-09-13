@@ -232,10 +232,10 @@ This holds as long as development and production use the same kind of connection
 
 ### macOS and Linux
 
-- **Serial devices.** With `serial: { pty: true }`, emupos creates the serial port itself, with no driver to install, and publishes it at a stable path: `$TMPDIR/emupos/<device id>`, or `/tmp/emupos/<device id>` when `TMPDIR` is not set. Configure your POS with that path. Run one simulator per link name: another `emupos run` that publishes the same name takes the link over.
+- **Serial devices.** With `serial: { pty: true }`, emupos creates the serial port itself, with no driver to install, and publishes it at a stable path: `$TMPDIR/emupos/<device id>`, or `/tmp/emupos/<device id>` when `TMPDIR` is not set. Configure your POS with that path. A link belongs to the `emupos run` that published it: a second simulator using the same link name refuses to start instead of taking it over.
 - **Serial settings.** If your POS opens the port with other settings than the device expects (for example 8N1 instead of 7E1 for the scale), emupos still passes the data and shows a warning. macOS lets emupos see the baud rate, data bits and parity; Linux only the baud rate.
 - **Keyboard scanners** need the Accessibility permission on macOS ([docs/macos-accessibility.md](docs/macos-accessibility.md)), and an X11 session with libXtst on Linux ([docs/linux-x11.md](docs/linux-x11.md)). Serial scanners need neither.
-- Opening an existing serial port such as `/dev/ttyUSB0` (`serial: { port: ... }`) is not available yet.
+- **Existing serial ports.** `serial: { port: /dev/ttyUSB0 }` opens a serial device that already exists, such as a USB serial adapter looped to another machine or a `tty0tty` virtual pair, with the device profile's serial settings. On Linux your user needs access to the device (usually the `dialout` group).
 
 ### Windows
 

@@ -36,6 +36,7 @@ from emupos.transports.errors import EndpointUnavailableError
 from emupos.transports.framing import Mismatch, watch_framing
 from emupos.transports.keyboard.keyboard import Keyboard, system_keyboard, type_keys
 from emupos.transports.pty import PtyPort, open_pty
+from emupos.transports.serial_port import SerialPort, open_serial_port
 from emupos.transports.tcp import TcpListener, serve_tcp
 
 logger = logging.getLogger("emupos")
@@ -82,7 +83,7 @@ class Simulator:
         self._link_dir = link_dir
         self._runtimes: dict[str, DeviceRuntime] = {}
         self._listeners: list[TcpListener] = []
-        self._ports: list[PtyPort] = []
+        self._ports: list[PtyPort | SerialPort] = []
         self._tasks: set[asyncio.Task[None]] = set()
         self._keyboard: Keyboard | None = None
         self.startup_events: tuple[PublishedEvent, ...] = ()
@@ -253,11 +254,16 @@ class Simulator:
                     port.slave_fd, framing, self._framing_reporter(device_id, str(port.link_path))
                 )
             )
-        elif connection.serial is not None:
-            # ponytail: existing COM/tty ports wait for the Windows serial spike (task 4.4).
-            raise EndpointUnavailableError(
-                f"serial port `{connection.serial.port}`: opening existing serial ports is not implemented yet; "
-                "use `serial: { pty: true }` on macOS/Linux or a `tcp` connection"
+        elif connection.serial is not None and connection.serial.port is not None:
+            # Existing device paths on macOS/Linux; Windows COM ports wait for the serial spike (task 4.4).
+            port = await open_serial_port(connection.serial.port, self._framing(runtime))
+            self._ports.append(port)
+            runtime.endpoints.append(Endpoint("serial", port.path))
+            endpoint = {"kind": "serial", "endpoint": port.path}
+            self._spawn(
+                self._serve_connection(
+                    runtime, port.connection_id, port.reader, port.writer, endpoint
+                )
             )
 
     async def _serve_connection(

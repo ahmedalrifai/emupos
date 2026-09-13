@@ -1,6 +1,7 @@
 import asyncio
 import os
 import stat
+import subprocess
 import sys
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -138,7 +139,55 @@ async def test_regular_file_is_not_replaced(tmp_path: Path) -> None:
     assert (link_dir / "deli").read_text() == "mine"
 
 
-async def test_close_removes_the_link(tmp_path: Path) -> None:
+async def test_close_by_the_owner_removes_link_and_pid_file(tmp_path: Path) -> None:
     port = await open_pty("deli", EIGHT_N_ONE, tmp_path / "emupos")
+    pid_file = port.link_path.with_name("deli.pid")
+    assert pid_file.read_text().strip() == str(os.getpid())
     await port.close()
     assert not port.link_path.is_symlink()
+    assert not pid_file.exists()
+
+
+def claim_link(link_dir: Path, pid: int) -> None:
+    """Make `deli` look published by process `pid`."""
+    link_dir.mkdir(mode=0o700)
+    (link_dir / "deli").symlink_to(os.devnull)
+    (link_dir / "deli.pid").write_text(f"{pid}\n")
+
+
+async def test_link_of_a_running_emupos_is_refused(tmp_path: Path) -> None:
+    link_dir, alive = tmp_path / "emupos", os.getppid()
+    claim_link(link_dir, alive)
+    with pytest.raises(
+        EndpointUnavailableError, match=f"in use by another emupos \\(pid {alive}\\)"
+    ):
+        await open_pty("deli", EIGHT_N_ONE, link_dir)
+    assert os.readlink(link_dir / "deli") == os.devnull
+    assert (link_dir / "deli.pid").read_text().strip() == str(alive)
+
+
+@pytest.mark.parametrize("pid_text", ["dead", "0", "not a pid"])
+async def test_link_of_a_stopped_emupos_is_replaced(tmp_path: Path, pid_text: str) -> None:
+    link_dir = tmp_path / "emupos"
+    if pid_text == "dead":
+        exited = subprocess.Popen([sys.executable, "-c", "pass"])
+        exited.wait()
+        pid_text = str(exited.pid)
+    claim_link(link_dir, 0)
+    (link_dir / "deli.pid").write_text(pid_text)
+
+    port = await open_pty("deli", EIGHT_N_ONE, link_dir)
+    try:
+        assert os.readlink(port.link_path) == port.device_path
+        assert (link_dir / "deli.pid").read_text().strip() == str(os.getpid())
+    finally:
+        await port.close()
+
+
+async def test_close_leaves_a_link_another_emupos_took_over(tmp_path: Path) -> None:
+    port = await open_pty("deli", EIGHT_N_ONE, tmp_path / "emupos")
+    pid_file = port.link_path.with_name("deli.pid")
+    pid_file.write_text(f"{os.getppid()}\n")
+    await port.close()
+    assert os.readlink(port.link_path) == port.device_path
+    assert pid_file.read_text().strip() == str(os.getppid())
