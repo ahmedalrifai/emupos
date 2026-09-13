@@ -103,13 +103,13 @@
 
 ## 13. Documentation
 
-- [ ] 13.1 `README.md`: what emupos is, the two sides (a POS talks to emupos only through real device protocols; the CLI, and optionally the API for automated tests, replace the physical actions on hardware, with a "real hardware → emupos command" table), install methods (`uv tool install`, `uvx`, `pipx`, `pip`), a five-minute quickstart per OS, and the hard limits table (virtual serial on Windows, ports not listed in enumeration, USB not emulated, Wayland, macOS Accessibility, one-way print queue, approximate glyphs).
+- [x] 13.1 `README.md`: what emupos is, the two sides (a POS talks to emupos only through real device protocols; the CLI, and optionally the API for automated tests, replace the physical actions on hardware, with a "real hardware → emupos command" table), install methods (`uv tool install`, `uvx`, `pipx`, `pip`), a five-minute quickstart per OS, and the hard limits table (virtual serial on Windows, ports not listed in enumeration, USB not emulated, Wayland, macOS Accessibility, one-way print queue, approximate glyphs).
 - [ ] 13.2 Setup guides: `docs/windows-serial.md` (com0com and Secure Boot), `docs/macos-accessibility.md`, `docs/linux-x11.md`, `docs/windows-print-queue.md`.
-- [ ] 13.3 Protocol notes in `docs/protocols/` for ESC/POS status bits and Toledo 8217, citing sources.
+- [x] 13.3 Protocol notes in `docs/protocols/` for ESC/POS status bits and Toledo 8217, citing sources.
 - [x] 13.4 `docs/configuration.md`: human-readable reference for every `emupos.yaml` key and the device profile format, with a complete example per device type and a pointer to `emupos config schema` for editor autocomplete.
-- [ ] 13.5 `docs/automation.md`: using the control API from automated tests (inject a fault, set a weight, trigger a scan, fetch the latest receipt), with `curl`, Node and Python examples and a GitHub Actions workflow that starts `emupos run` in the background and waits for `/api/v1/health`; restates that POS code never uses the API.
+- [x] 13.5 `docs/automation.md`: using the control API from automated tests (inject a fault, set a weight, trigger a scan, fetch the latest receipt), with `curl`, Node and Python examples and a GitHub Actions workflow that starts `emupos run` in the background and waits for `/api/v1/health`; restates that POS code never uses the API.
 - [x] 13.6 `docs/cli.md` generated from the Typer app, plus a CI step that regenerates it and fails when the committed file is out of date.
-- [ ] 13.7 `docs/README.md` index linking every guide, and links to it from the main `README.md`.
+- [x] 13.7 `docs/README.md` index linking every guide, and links to it from the main `README.md`.
 - [x] 13.8 `SECURITY.md`: supported versions, private vulnerability reporting through GitHub security advisories, and the local API's threat model (localhost only, browser-request protection, no authentication).
 - [ ] 13.9 `CODE_OF_CONDUCT.md` (Contributor Covenant) with the maintainer contact for reports.
 - [x] 13.10 `.github/ISSUE_TEMPLATE/`: bug report (asks for `emupos doctor --json` output, OS, config and a hex capture if relevant), device or protocol request (model, manual link, transport), and profile correction (e.g. code-page numbers, with a self-test page photo); plus `config.yml` pointing security reports to `SECURITY.md`.

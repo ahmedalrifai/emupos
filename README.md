@@ -1,7 +1,260 @@
 # emupos
 
-Simulate POS hardware — receipt printers, cash drawers, weight scales and barcode scanners — at the wire-protocol level, so your point-of-sale software integrates with emupos exactly as it would with real devices.
+emupos simulates point-of-sale hardware — a receipt printer with its cash drawer, a weight scale and a barcode scanner — at the wire-protocol level, so your POS talks to it exactly as it talks to real devices.
 
-> emupos is in early development. The full guide arrives with the first release.
+It runs on Windows, macOS and Linux (see the [operating system notes](#operating-system-notes) for what works where), on a laptop or in CI.
 
-Licensed under the [Apache License 2.0](LICENSE).
+## Two sides
+
+emupos sits between two things, and they never mix:
+
+```
+     DEVICE SIDE                                          OPERATOR SIDE
+     the same as real hardware                            replaces your hands
+
++----------+   ESC/POS over TCP 9100      +--------+   emupos CLI          +---------------+
+| your POS | <--------------------------> | emupos | <-------------------> | you, or your  |
+|   code   |   Toledo 8217 over serial    |        |   control API         | test scripts  |
++----------+   scanner keystrokes/serial  +--------+   (127.0.0.1:8765)    +---------------+
+```
+
+- **Your POS** talks to emupos only through the real device protocols: it prints to TCP port 9100, reads the scale on a serial port, receives scans as keystrokes or serial data. It never uses the emupos API. The integration code you test is the code that runs with real devices, and switching to real hardware is a configuration change.
+- **You** do what a person does with the hardware: put an item on the scale, pull the scanner trigger, let the paper run out, push the drawer shut, look at the receipt. You do it with `emupos` commands. Automated tests can do the same through the [control API](docs/automation.md).
+
+| With real hardware you… | With emupos you run… |
+|---|---|
+| put 1.25 kg of tomatoes on the scale | `emupos scale set 1.25kg` |
+| put them down so the reading still moves | `emupos scale set 1.25kg --unstable` |
+| press ZERO or TARE on the scale | `emupos scale zero`, `emupos scale tare` |
+| pull the scanner trigger on a barcode | `emupos scan 5901234123457` |
+| scan the label a label scale printed | `emupos barcode weighed --layout weight-21 --item 12345 --weight 1.25kg`, then `emupos scan 2112345012506` |
+| let the paper run low, or run out | `emupos fault set front paper-near-end`, `emupos fault set front paper-out` |
+| open the printer cover, or switch the printer off-line | `emupos fault set front cover-open`, `emupos fault set front offline` |
+| put in a new roll, close the cover | `emupos fault clear front paper-out`, `emupos fault clear front cover-open` |
+| push the cash drawer shut | `emupos drawer close` |
+| tear off the receipt and read it | `emupos receipt show` (add `--save receipt.png` for the image) |
+| glance at the devices | `emupos devices` |
+
+## What it simulates
+
+| Device | What emupos does |
+|---|---|
+| **Receipt printer** | Accepts ESC/POS over raw TCP (port 9100 in the demo) and, on macOS and Linux, over a serial port. Renders every receipt as a PNG image and a text dump: text styles and sizes, raster and bit images, barcodes and QR codes, at the dot width of the printer profile. Answers `DLE EOT`, `GS r` and Automatic Status Back from its real state. Faults: `paper-near-end`, `paper-out`, `cover-open`, `offline`. Profiles: Epson TM-T20III, Xprinter XP-80T, Rongta RP326 (all 80 mm). |
+| **Cash drawer** | One per printer. Opened by the POS with `ESC p` or `DLE DC4`; stays open until you close it. The POS sees it through the printer's status replies, with a configurable sensor level. |
+| **Weight scale** | Speaks Mettler Toledo 8217 on a serial port (macOS and Linux). Stable and moving readings, zero, tare, over capacity and under zero. Profile: 15 kg × 5 g. |
+| **Barcode scanner** | Keyboard mode types each scan into the focused window, like a USB keyboard-wedge scanner (macOS, and Linux on X11). Serial mode writes scans to a serial port (macOS and Linux). |
+| **Weighed-item barcodes** | Generates the weight- or price-embedded EAN-13 barcodes that label scales print, from layouts such as `21IIIIIWWWWWC`. |
+
+Around the devices: a CLI with live event output, `emupos doctor`, configuration validation with JSON Schema, and a local control API with an event stream.
+
+## Install
+
+emupos needs Python 3.13 or newer. [uv](https://docs.astral.sh/uv/) downloads a suitable Python for you, so it is the easiest way:
+
+```sh
+uv tool install emupos        # recommended
+```
+
+Other ways:
+
+```sh
+uvx emupos run --demo         # run without installing
+pipx install emupos
+pip install emupos            # for example inside a CI virtual environment
+```
+
+From a clone of the repository:
+
+```sh
+git clone https://github.com/emupos/emupos.git
+cd emupos
+uv run emupos run --demo
+```
+
+Check the installation with `emupos --version`.
+
+## Quickstart
+
+This takes about five minutes and works on every operating system; the scale and scan steps need macOS or Linux. Use two terminals.
+
+### 1. Start the demo devices
+
+In the first terminal:
+
+```sh
+emupos run --demo
+```
+
+```
+emupos <version> · built-in demo configuration
+DEVICE  TYPE     PROFILE          CONNECTIONS
+front   printer  epson-tm-t20iii  tcp 127.0.0.1:9100
+lane1   scanner  keyboard mode    types into the focused window
+deli    scale    toledo8217-15kg  serial $TMPDIR/emupos/deli -> /dev/ttys009
+control API http://127.0.0.1:8765
+Running the demo configuration. Write your own with `emupos config init`.
+Showing events as they happen. Press Ctrl+C to stop.
+```
+
+The demo has a printer `front` on TCP port 9100, a keyboard scanner `lane1` and, on macOS and Linux, a scale `deli` on a serial port. Leave it running: events appear here as they happen.
+
+### 2. Look at the devices
+
+In the second terminal:
+
+```sh
+emupos devices
+```
+
+```
+DEVICE  TYPE     PROFILE          CONNECTIONS                                 STATE
+front   printer  epson-tm-t20iii  tcp 127.0.0.1:9100                          drawer closed, faults: none
+lane1   scanner  -                -                                           keyboard mode, suffix enter, 10 ms between keys
+deli    scale    toledo8217-15kg  serial $TMPDIR/emupos/deli -> /dev/ttys009  0.000 kg stable
+```
+
+### 3. Print a receipt, as your POS would
+
+Send ESC/POS bytes to port 9100: initialise (`ESC @`), a line of text, and a cut (`GS V 0`).
+
+macOS and Linux:
+
+```sh
+printf '\x1b\x40Hello from emupos\n\x1d\x56\x00' | nc -w 1 127.0.0.1 9100
+```
+
+Any operating system, with uv:
+
+```sh
+uv run --no-project python -c "import socket; s = socket.create_connection(('127.0.0.1', 9100)); s.sendall(b'\x1b@Hello from emupos\n\x1dV\x00'); s.close()"
+```
+
+The first terminal shows the receipt being completed:
+
+```
+00:26:32.881  front  printer.job.completed         job 1 · cut → front-20260913T222632880Z-a04808eb
+```
+
+### 4. Read the receipt
+
+```sh
+emupos receipt show
+```
+
+```
+Hello from emupos
+```
+
+`emupos receipt show --save receipt.png` also writes the rendered image. Receipts are kept in `./receipts`.
+
+### 5. Run out of paper
+
+```sh
+emupos fault set front paper-out
+```
+
+Now ask the printer for its paper status (`DLE EOT 4`), as a POS does:
+
+```sh
+printf '\x10\x04\x04' | nc -w 1 127.0.0.1 9100 | od -An -tx1
+```
+
+```
+7e
+```
+
+`7e` means "paper not present". Any operating system:
+
+```sh
+uv run --no-project python -c "import socket; s = socket.create_connection(('127.0.0.1', 9100)); s.sendall(b'\x10\x04\x04'); print(s.recv(1).hex())"
+```
+
+Print another receipt now (step 3 with different text): it is held, like on a real printer without paper. Put a new roll in and it prints:
+
+```sh
+emupos fault clear front paper-out
+emupos receipt show
+```
+
+All status bytes are listed in [docs/protocols/escpos-status.md](docs/protocols/escpos-status.md).
+
+### 6. Weigh something (macOS and Linux)
+
+```sh
+emupos scale set 1.25kg
+```
+
+Ask the scale for the weight over its serial port (`W`), as a POS does, here with pyserial:
+
+```sh
+uv run --no-project --with pyserial python -c "import serial; s = serial.Serial('${TMPDIR:-/tmp}/emupos/deli', 9600, bytesize=7, parity='E', timeout=1); s.write(b'W'); print(s.read_until(b'\r'))"
+```
+
+```
+b'\x0201.250\r'
+```
+
+The protocol is described in [docs/protocols/toledo8217.md](docs/protocols/toledo8217.md).
+
+### 7. Scan a barcode (optional)
+
+```sh
+emupos scan 5901234123457
+```
+
+Click into a text field during the 3-second countdown: emupos types `5901234123457` and Enter there, like a USB scanner. This needs the Accessibility permission on macOS ([guide](docs/macos-accessibility.md)) and an X11 session on Linux ([guide](docs/linux-x11.md)). It is not available on Windows yet.
+
+### 8. Stop
+
+Press Ctrl+C in the first terminal. emupos closes its ports and removes its serial links.
+
+Next, write your own configuration with `emupos config init` ([reference](docs/configuration.md)), and point your POS at the endpoints `emupos run` prints.
+
+## Operating system notes
+
+### macOS and Linux
+
+- **Serial devices.** With `serial: { pty: true }`, emupos creates the serial port itself, with no driver to install, and publishes it at a stable path: `$TMPDIR/emupos/<device id>`, or `/tmp/emupos/<device id>` when `TMPDIR` is not set. Configure your POS with that path. Run one simulator per link name: another `emupos run` that publishes the same name takes the link over.
+- **Serial settings.** If your POS opens the port with other settings than the device expects (for example 8N1 instead of 7E1 for the scale), emupos still passes the data and shows a warning. macOS lets emupos see the baud rate, data bits and parity; Linux only the baud rate.
+- **Keyboard scanners** need the Accessibility permission on macOS ([docs/macos-accessibility.md](docs/macos-accessibility.md)), and an X11 session with libXtst on Linux ([docs/linux-x11.md](docs/linux-x11.md)). Serial scanners need neither.
+- Opening an existing serial port such as `/dev/ttyUSB0` (`serial: { port: ... }`) is not available yet.
+
+### Windows
+
+- **The receipt printer and cash drawer work over TCP**, including status replies and faults.
+- **Serial devices are not available yet.** emupos cannot create serial ports on Windows by itself: a serial device there needs a virtual COM port pair from the com0com driver ([docs/windows-serial.md](docs/windows-serial.md)), and emupos cannot open COM ports yet. This means the scale and serial scanners do not run on Windows today; the demo leaves the scale out.
+- **Keyboard-mode scanning is not available yet**: scans are refused with a message.
+- **`emupos setup print-queue`** (a Windows print queue pointed at the simulated printer) is not available yet. Point your POS at the printer's TCP port directly.
+
+`emupos doctor` checks your machine and `./emupos.yaml`, and prints a fix for every problem it finds.
+
+## Hard limits
+
+Some things cannot be simulated in software, or not on every operating system:
+
+| Limit | What it means for you |
+|---|---|
+| Virtual serial ports on Windows need com0com | Windows has no built-in virtual serial port pairs, so serial devices there need the third-party com0com driver. emupos cannot open COM ports yet (see [Windows](#windows)). |
+| Simulator-created serial ports are not listed | The ports emupos creates on macOS and Linux do not appear in serial port lists or pickers, including the browser's Web Serial API. Open them by path. A browser POS that uses Web Serial cannot reach them. |
+| USB devices are not emulated | USB printer-class devices and HID POS scanners cannot be emulated in software. emupos offers the same devices over TCP, serial and keyboard input. |
+| No keyboard scanning on Wayland | Wayland does not let one program type into another's windows. Use a serial scanner, or an X11 session. |
+| macOS needs the Accessibility permission for keyboard scans | Without it macOS silently drops the keystrokes, so emupos refuses the scan and tells you which app to allow. |
+| Windows print queues are one-way | A POS that prints through a Windows print queue never receives status replies such as paper out. Test status over TCP. (`emupos setup print-queue` is not available yet.) |
+| Glyph shapes are approximate | Receipt geometry is dot-accurate (paper width, columns, line breaks, images, barcode module sizes), but characters are drawn with open-licensed bitmap fonts, not the printer's own. Only code page PC437 has glyphs; other code pages print placeholders, while the text dump still shows the characters. |
+| Virtual serial pairs ignore baud rate and parity | Data passes whatever settings your POS chooses, while a real device would misread the bytes. Watch for emupos's framing warnings, which cover what the operating system exposes (macOS: baud rate, data bits, parity; Linux: baud rate only). |
+
+## Documentation
+
+- [docs/README.md](docs/README.md): every guide, with one line each
+- [docs/configuration.md](docs/configuration.md): `emupos.yaml` and device profiles
+- [docs/cli.md](docs/cli.md): every command and option
+- [docs/automation.md](docs/automation.md): driving emupos from automated tests and CI
+- [docs/protocols/](docs/protocols/): ESC/POS status bytes and the Toledo 8217 scale protocol
+
+## Contributing and security
+
+Contributions are welcome: device profiles, protocols and platform fixes. Start with [CONTRIBUTING.md](CONTRIBUTING.md). Please report security problems privately, as described in [SECURITY.md](SECURITY.md).
+
+## Licence
+
+emupos is licensed under the [Apache License 2.0](LICENSE). Third-party attributions are in [NOTICE](NOTICE).
