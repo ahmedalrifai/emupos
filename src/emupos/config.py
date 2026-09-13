@@ -221,8 +221,8 @@ def json_schema() -> dict[str, Any]:
     schema = Config.model_json_schema(by_alias=True)
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "title": f"emupos configuration (schema {SUPPORTED_SCHEMA})",
         **schema,
+        "title": f"emupos configuration (schema {SUPPORTED_SCHEMA})",
     }
 
 

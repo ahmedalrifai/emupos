@@ -96,6 +96,7 @@ emupos keeps a small set of runtime dependencies, all permissively licensed (CI 
 |---|---|
 | typer (with rich) | The CLI: commands, styled output, shell completion |
 | fastapi, uvicorn | The local control API, with request validation and an OpenAPI document |
+| websockets | The control API event stream, and the CLI waiting for events |
 | pydantic | Validates configuration, profiles and API bodies; exports JSON Schema |
 | pyyaml | Reads configuration and profiles (safe loader only) |
 | pillow | Renders receipts as 1-bit PNG images |

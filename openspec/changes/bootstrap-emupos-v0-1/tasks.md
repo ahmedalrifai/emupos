@@ -31,7 +31,7 @@
 - [x] 4.2 pty transport (macOS/Linux): raw pty pair, slave kept open for reconnects, private link directory, stale link replacement, and link removal on shutdown; wrap as asyncio streams.
 - [x] 4.3 Serial framing observation: poll the host settings on the pty, emit `connection.framing-mismatch` once per distinct framing, and warn without blocking data (macOS: baud, data bits, parity; Linux: baud only).
 - [ ] 4.4 Existing-port serial transport (Windows COM and any tty path) using the backend chosen in 1.1; a missing port fails startup with a message naming com0com and `emupos doctor`.
-- [ ] 4.5 Connection events, clean shutdown on Ctrl+C that releases ports and links, and a binary transparency test sending all 256 byte values in both directions over TCP and pty.
+- [x] 4.5 Connection events, clean shutdown on Ctrl+C that releases ports and links, and a binary transparency test sending all 256 byte values in both directions over TCP and pty.
 
 ## 5. Receipt printer
 
@@ -82,24 +82,24 @@
 
 ## 11. Control API
 
-- [ ] 11.1 FastAPI app under `/api/v1` bound per configuration, with the non-loopback warning, API port conflict handling, health and OpenAPI endpoints.
-- [ ] 11.2 Browser-request protection: refuse `Origin` headers, non-loopback `Host` headers and non-JSON bodies, with tests for each.
-- [ ] 11.3 Error body and status codes (404, 409 `wrong_device_type`, 415, 422, 500 without stack traces).
-- [ ] 11.4 Device listing and description with state fields per device type.
-- [ ] 11.5 Endpoints for faults, scale weight/zero/tare, scans (202 with id), drawer close, receipts (list, metadata, `latest`, image, text) and weighed barcodes.
-- [ ] 11.6 Event WebSocket streaming published events as JSON.
+- [x] 11.1 FastAPI app under `/api/v1` bound per configuration, with the non-loopback warning, API port conflict handling, health and OpenAPI endpoints.
+- [x] 11.2 Browser-request protection: refuse `Origin` headers, non-loopback `Host` headers and non-JSON bodies, with tests for each.
+- [x] 11.3 Error body and status codes (404, 409 `wrong_device_type`, 415, 422, 500 without stack traces).
+- [x] 11.4 Device listing and description with state fields per device type.
+- [x] 11.5 Endpoints for faults, scale weight/zero/tare, scans (202 with id), drawer close, receipts (list, metadata, `latest`, image, text) and weighed barcodes.
+- [x] 11.6 Event WebSocket streaming published events as JSON.
 - [ ] 11.7 CI check that the OpenAPI document does not remove or change existing `/api/v1` paths or fields compared with the last release.
 
 ## 12. CLI
 
-- [ ] 12.1 Typer app with Rich output: command groups from the cli spec, help text, plain output when not a TTY, `--json`, `NO_COLOR`, errors on stderr, and the exit codes.
-- [ ] 12.2 `--api` / `EMUPOS_API` handling, exit status 3 when the simulator is unreachable, and device selection when `--device` is omitted.
-- [ ] 12.3 `emupos run`: load configuration or `--demo`, start devices, connections and API, print the banner with every endpoint and link, stream colour-coded events, and shut down cleanly.
-- [ ] 12.4 `devices`, `receipt list`, `receipt show` (including `--save`), `scan` (waits for the matching delivery event), `scale set|zero|tare` (parsing `1.25kg` / `1250g`), `fault set|clear` and `drawer close`.
-- [ ] 12.5 `barcode weighed` (works without the simulator), `config init|validate|schema`.
+- [x] 12.1 Typer app with Rich output: command groups from the cli spec, help text, plain output when not a TTY, `--json`, `NO_COLOR`, errors on stderr, and the exit codes.
+- [x] 12.2 `--api` / `EMUPOS_API` handling, exit status 3 when the simulator is unreachable, and device selection when `--device` is omitted.
+- [x] 12.3 `emupos run`: load configuration or `--demo`, start devices, connections and API, print the banner with every endpoint and link, stream colour-coded events, and shut down cleanly.
+- [x] 12.4 `devices`, `receipt list`, `receipt show` (including `--save`), `scan` (waits for the matching delivery event), `scale set|zero|tare` (parsing `1.25kg` / `1250g`), `fault set|clear` and `drawer close`.
+- [x] 12.5 `barcode weighed` (works without the simulator), `config init|validate|schema`.
 - [ ] 12.6 `emupos doctor` with pass/warn/fail checks and fixes: Python version, ports free, configuration valid, macOS Accessibility, Linux X11/libXtst, Windows COM ports and com0com, and print-queue/SNMP checks; `--json` output.
-- [ ] 12.7 `--version` output and shell completion install.
-- [ ] 12.8 End-to-end test: run the demo configuration, print a fixture receipt over TCP, open the drawer, set a fault and read status bytes, and fetch the receipt through the CLI.
+- [x] 12.7 `--version` output and shell completion install.
+- [x] 12.8 End-to-end test: run the demo configuration, print a fixture receipt over TCP, open the drawer, set a fault and read status bytes, and fetch the receipt through the CLI.
 
 ## 13. Documentation
 
