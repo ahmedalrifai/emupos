@@ -35,7 +35,7 @@ class EventType(StrEnum):
 # Event data must be JSON-serialisable: str, int, float, bool, None, lists and mappings of those.
 type EventData = Mapping[str, object]
 
-# Identifies one open connection to a device, e.g. "tcp:127.0.0.1:53422" or "serial:/tmp/emupos/deli".
+# Identifies one open connection to a device, e.g. "tcp:127.0.0.1:9100<-127.0.0.1:53422" or "serial:/tmp/emupos/deli".
 type ConnectionId = str
 
 
