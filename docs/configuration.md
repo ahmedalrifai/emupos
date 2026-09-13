@@ -89,7 +89,7 @@ Every device has:
 
 | Key | Required | Default | Meaning |
 |---|---|---|---|
-| `mode` | yes | — | `keyboard`: types scans into the focused window like a USB keyboard-wedge scanner. `serial`: writes scans to its connections. |
+| `mode` | yes | — | `keyboard`: types scans into the focused window like a USB keyboard-wedge scanner (setup: [macOS](macos-accessibility.md), [Linux](linux-x11.md)). `serial`: writes scans to its connections. |
 | `suffix` | no | `enter` | Sent after each scan: `enter`, `tab` or `none`. |
 | `inter_key_delay_ms` | no | `10` | Delay between keystrokes in keyboard mode. |
 | `connections` | serial mode only | — | A keyboard scanner must not have connections; a serial scanner needs at least one. Serial scanners expect 9600 baud, 8 data bits, no parity, 1 stop bit. |

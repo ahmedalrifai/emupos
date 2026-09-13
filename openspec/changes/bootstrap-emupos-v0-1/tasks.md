@@ -66,11 +66,11 @@
 
 ## 9. Barcode scanner
 
-- [ ] 9.1 Scan request handling: validation, one scan at a time per scanner, countdown, delivery event with scan id, and serial-mode delivery (data bytes plus suffix).
+- [x] 9.1 Scan request handling: validation, one scan at a time per scanner, countdown, delivery event with scan id, and serial-mode delivery (data bytes plus suffix).
 - [ ] 9.2 Windows keyboard injector: `SendInput` with US-layout virtual-key codes, a Unicode mode, inter-key delay and suffix, plus a warning when Windows reports fewer keystrokes accepted than sent.
-- [ ] 9.3 macOS keyboard injector: `CGEventPost` with US-layout key codes and a Unicode mode, and an Accessibility trust check before every scan that fails with the settings path.
-- [ ] 9.4 Linux X11 keyboard injector via XTest, with clear failures when not on X11 (pointing to serial mode) or when libXtst is missing.
-- [ ] 9.5 Manual verification checklist per OS in `docs/`, since keystroke injection cannot run in CI.
+- [x] 9.3 macOS keyboard injector: `CGEventPost` with US-layout key codes and a Unicode mode, and an Accessibility trust check before every scan that fails with the settings path.
+- [x] 9.4 Linux X11 keyboard injector via XTest, with clear failures when not on X11 (pointing to serial mode) or when libXtst is missing.
+- [x] 9.5 Manual verification checklist per OS in `docs/`, since keystroke injection cannot run in CI.
 
 ## 10. Windows print queue
 
