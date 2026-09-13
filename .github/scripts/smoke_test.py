@@ -89,7 +89,9 @@ def check_receipt() -> None:
         finally:
             process.terminate()
             output, _ = process.communicate(timeout=TIMEOUT)
-        print(output.decode(errors="replace"))
+        # Raw bytes: a Windows console's code page (cp1252) cannot show every character emupos prints.
+        sys.stdout.buffer.write(output)
+        sys.stdout.flush()
 
 
 def main() -> None:
