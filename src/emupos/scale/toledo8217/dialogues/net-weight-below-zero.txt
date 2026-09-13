@@ -1,0 +1,6 @@
+# weight-scale spec, "Status reply when the weight cannot be reported": under zero (bit 2) and net (bit 5)
+@ set grams=200 stable=true
+@ tare
+@ set grams=100 stable=true
+> 57
+< 02 3f 24 0d

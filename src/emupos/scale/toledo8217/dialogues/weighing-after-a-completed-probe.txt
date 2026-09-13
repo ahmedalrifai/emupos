@@ -1,0 +1,7 @@
+# weight-scale spec, "Echo probe": F ends the probe without a reply, then W is answered
+@ set grams=1250 stable=true
+> 45 68 65 6c 6c 6f
+< 02 45 0d 68 65 6c 6c 6f
+> 46
+> 57
+< 02 30 31 2e 32 35 30 0d

@@ -1,0 +1,4 @@
+# weight-scale spec, "Unrecognised commands": CR and LF after W produce no reply
+@ set grams=1250 stable=true
+> 57 0d 0a
+< 02 30 31 2e 32 35 30 0d

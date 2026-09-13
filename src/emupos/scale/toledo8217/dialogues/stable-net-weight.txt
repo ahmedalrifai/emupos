@@ -1,0 +1,7 @@
+# weight-scale spec, "Weight request with a reportable weight": tare 200 g, gross 1450 g
+@ set grams=200 stable=true
+@ tare
+@ set grams=1450 stable=true
+# net 1.250 kg, marked with N
+> 57
+< 02 30 31 2e 32 35 30 4e 0d

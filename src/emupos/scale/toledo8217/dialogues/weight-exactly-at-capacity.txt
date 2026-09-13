@@ -1,0 +1,4 @@
+# weight-scale spec, "Weight request with a reportable weight": 15000 g on a 15000 g scale
+@ set grams=15000 stable=true
+> 57
+< 02 31 35 2e 30 30 30 0d

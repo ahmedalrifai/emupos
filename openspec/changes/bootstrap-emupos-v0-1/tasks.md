@@ -53,16 +53,16 @@
 
 ## 7. Weight scale
 
-- [ ] 7.1 Scale state in integer grams (gross, tare, net, stable, capacity from the profile), settling from unstable to stable with an injected clock, and zero/tare rules (refused while in motion).
-- [ ] 7.2 Toledo 8217 protocol as a pure function: `W` weight replies formatted per profile, the status reply for motion, over capacity and under zero, bad-command status for unrecognised commands, ignored CR/LF, and the `Ehello` echo probe with `F`.
-- [ ] 7.3 Dialogue fixtures for every scenario in the weight-scale spec, plus Hypothesis fuzzing of the request parser.
+- [x] 7.1 Scale state in integer grams (gross, tare, net, stable, capacity from the profile), settling from unstable to stable with an injected clock, and zero/tare rules (refused while in motion).
+- [x] 7.2 Toledo 8217 protocol as a pure function: `W` weight replies formatted per profile, the status reply for motion, over capacity and under zero, bad-command status for unrecognised commands, ignored CR/LF, and the `Ehello` echo probe with `F`.
+- [x] 7.3 Dialogue fixtures for every scenario in the weight-scale spec, plus Hypothesis fuzzing of the request parser.
 - [ ] 7.4 Conformance check: run Odoo's public Toledo 8217 driver as a black-box client against the pty (local, documented script; no LGPL code copied into the repository); record the result in `docs/protocols/toledo8217.md`.
 
 ## 8. Weighed-item barcodes
 
-- [ ] 8.1 Layout pattern parser and validation (length, literal prefix, single final check position, weight or price field), with presets `weight-21` and `price-23`.
-- [ ] 8.2 Value encoding with field-overflow errors, the EAN-13 check digit, and tests against known valid EAN-13 codes.
-- [ ] 8.3 PNG barcode image output with human-readable digits.
+- [x] 8.1 Layout pattern parser and validation (length, literal prefix, single final check position, weight or price field), with presets `weight-21` and `price-23`.
+- [x] 8.2 Value encoding with field-overflow errors, the EAN-13 check digit, and tests against known valid EAN-13 codes.
+- [x] 8.3 PNG barcode image output with human-readable digits.
 
 ## 9. Barcode scanner
 

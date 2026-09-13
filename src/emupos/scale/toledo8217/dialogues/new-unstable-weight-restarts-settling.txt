@@ -1,0 +1,9 @@
+# weight-scale spec, "Unstable readings settle": a second unstable set restarts the 500 ms
+@ t=0
+@ set grams=1000 stable=false
+@ t=0.4
+@ set grams=1250 stable=false
+# 800 ms after the first set, 400 ms after the second: still in motion
+@ t=0.8
+> 57
+< 02 3f 01 0d

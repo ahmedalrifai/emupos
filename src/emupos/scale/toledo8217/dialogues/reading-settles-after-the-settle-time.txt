@@ -1,0 +1,11 @@
+# weight-scale spec, "Unstable readings settle": profile settle time 500 ms
+@ t=0
+@ set grams=1250 stable=false
+# 100 ms later the reading is still in motion (bit 0)
+@ t=0.1
+> 57
+< 02 3f 01 0d
+# 600 ms after the set it has settled at 1.250 kg
+@ t=0.6
+> 57
+< 02 30 31 2e 32 35 30 0d
