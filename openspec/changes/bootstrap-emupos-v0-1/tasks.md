@@ -123,5 +123,5 @@
 - [x] 14.1 release-please configuration for a Python package on the `main` branch, generating `CHANGELOG.md` with a `⚠ BREAKING CHANGES` section and bumping the `pyproject.toml` version.
 - [x] 14.2 `release.yml` on `v*` tags: fail if the tag and package version differ, `uv build`, install the built wheel on Windows/macOS/Linux and smoke-test (`emupos --version`, `emupos doctor --json` produces valid JSON, render a fixture receipt), then publish.
 - [x] 14.3 Publish to PyPI with Trusted Publishing and attestations, and create the GitHub Release from the changelog entry.
-- [ ] 14.4 Maintainer setup (manual): create the `emupos` GitHub organization and repository, and register the PyPI Trusted Publisher for the release workflow.
+- [x] 14.4 Maintainer setup (manual): create the GitHub repository (github.com/ahmedalrifai/emupos, on the maintainer's account), enable private vulnerability reporting, allow workflows to open pull requests, create the `pypi` environment, restrict merges to squash with a `main` ruleset, and register the PyPI Trusted Publisher for the release workflow.
 - [ ] 14.5 Cut the first release and verify `uvx emupos run --demo` works on Windows, macOS and Linux from PyPI.
