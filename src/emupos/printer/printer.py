@@ -37,6 +37,16 @@ class PrinterFault(StrEnum):
 BLOCKING_FAULTS = frozenset({PrinterFault.PAPER_OUT, PrinterFault.COVER_OPEN, PrinterFault.OFFLINE})
 
 
+# GS ( L fn 48 / fn 51 (m fn) -> header 37h, identifier, capacity as decimal text, NUL. A capacity
+# of "0" tells the POS that NV graphics cannot be used, which is true of the simulator.
+NV_GRAPHICS_CAPACITY_REPLIES = {
+    b"\x30\x00": b"\x37\x300\x00",  # fn 0: entire capacity
+    b"\x30\x30": b"\x37\x300\x00",  # fn 48
+    b"\x30\x03": b"\x37\x310\x00",  # fn 3: remaining capacity
+    b"\x30\x33": b"\x37\x310\x00",  # fn 51
+}
+
+
 @dataclass(frozen=True, slots=True)
 class PrinterState:
     faults: tuple[str, ...]  # active faults, sorted by name
@@ -206,6 +216,10 @@ class Printer:
                         return
                 case "GS V":  # gs_cv: the cut ends the job
                     self._complete_job(connection, "cut", out)
+                    return
+                case "GS ( L" | "GS 8 L" if token.data in NV_GRAPHICS_CAPACITY_REPLIES:
+                    # gs_lparen_cl_fn48, gs_lparen_cl_fn51: emupos has no NV graphics memory
+                    self._write(connection, NV_GRAPHICS_CAPACITY_REPLIES[token.data], out)
                     return
                 case "ESC @":  # esc_atsign: GS a is effective until ESC @ (gs_la)
                     connection.asb = 0

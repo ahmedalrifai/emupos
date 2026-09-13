@@ -216,7 +216,10 @@ The printer recognises a command by its bytes and consumes it completely, includ
 | `ESC !`, `ESC E`, `ESC G`, `ESC -`, `ESC M`, `GS !`, `GS B` | Font, bold (double-strike looks the same as bold), underline, character size, reverse printing |
 | `ESC a`, `ESC {` | Justification and upside-down printing; ignored when sent in the middle of a line |
 | `ESC t` | Selects a code page by the profile's number; see the note below |
+| `HT`, `ESC D` | Tabs: moves to the next tab position (every 8 characters by default); the text dump fills the gap with spaces |
+| `ESC SP`, `GS L`, `GS W`, `ESC $`, `ESC \` | Right-side character spacing, left margin, print area width, absolute and relative print position |
 | `ESC *`, `GS v 0` | Bit images and raster images, dot for dot |
+| `GS ( L` / `GS 8 L` fn 112 and fn 50 | Buffered graphics: store a monochrome raster image, then print it. fn 48 and fn 51 report an NV graphics capacity of zero |
 | `GS k` | Barcodes: UPC-A, EAN-13, EAN-8, CODE39, ITF and CODE128 (m = 73) |
 | `GS w`, `GS h`, `GS H`, `GS f` | Barcode module width, height, and position and font of the human-readable text |
 | `GS ( k` with cn = 49 | QR codes: module size (fn 167), error correction (fn 169), store (fn 180), print (fn 181); always printed as model 2 |
@@ -234,16 +237,15 @@ These change nothing on a receipt image, so emupos consumes them silently: `CR`,
 
 These are recognised and consumed in full, but not simulated. Each one publishes a `printer.command.unknown` event whose data has the bytes and the command name, and printing continues normally:
 
-- layout and spacing: `ESC SP`, `ESC $`, `ESC \`, `ESC D`, `GS L`, `GS W`
 - character sets and rotation: `ESC R`, `ESC V`
 - page mode: `ESC L` (the printer stays in standard mode)
-- NV graphics and other function commands: `GS (` (for example `GS ( L`), `GS 8 L`, `ESC (`, `FS (`
+- NV graphics and other function commands: `GS ( L` / `GS 8 L` functions other than 48, 50, 51 and 112, other `GS (` commands, `ESC (`, `FS (`
 - `GS ( k` symbols other than QR codes, such as PDF417
 - `GS k` in other symbologies (UPC-E, CODABAR, CODE93, GS1-128, GS1 DataBar, CODE128 with m = 79); the event names the symbology
 - `DLE ENQ`, `DLE DC4` functions other than 1, `DLE EOT` and `GS r` with other values of n
 - `ESC *`, `GS v 0`, `ESC M` and `ESC p` with a mode or parameter they do not accept
 
-Some POS libraries send these. For example, python-escpos prints images with `GS ( L` when asked for its `graphics` image mode: emupos consumes and reports both commands and draws nothing, so that job produces no receipt. Use raster (`GS v 0`) or bit images (`ESC *`) to see images on simulated receipts. Unknown commands never affect status replies.
+Some POS libraries send these. When one of them matters for your receipts, open a device or protocol request. Unknown commands never affect status replies.
 
 ### Bytes that form no command
 

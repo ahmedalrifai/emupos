@@ -65,6 +65,18 @@ def _nul_terminated(_params: bytes, stream: bytes, start: int) -> int | None:
     return None if end < 0 else end - start + 1
 
 
+def _tab_positions_length(_params: bytes, stream: bytes, start: int) -> int | None:
+    """ESC D n1...nk NUL: ends at NUL, before a value not above the previous one, or after 32."""
+    previous = 0
+    for index, value in enumerate(stream[start:]):
+        if value == 0:
+            return index + 1
+        if value <= previous or index == 32:
+            return index  # the following bytes are normal data
+        previous = value
+    return None
+
+
 def _length_in_params(offset: int) -> DataLength:
     """Data length is a little-endian 16-bit number (pL pH) at `offset` in the parameters."""
     return lambda params, _stream, _start: params[offset] + params[offset + 1] * 256
@@ -88,7 +100,7 @@ def _barcode_length(params: bytes, stream: bytes, start: int) -> int | None:
     return 0
 
 
-def _nv_graphics_length(params: bytes, _stream: bytes, _start: int) -> int:
+def _graphics_length(params: bytes, _stream: bytes, _start: int) -> int:
     return int.from_bytes(params, "little")
 
 
@@ -114,6 +126,7 @@ COMMANDS: dict[bytes, CommandSpec] = {
     b"\x10\x14": CommandSpec("DLE DC4", 1, _dle_dc4_length, realtime=True),  # dle_dc4_fn1
     # Print and paper feed
     b"\x0a": CommandSpec("LF"),                                   # lf
+    b"\x09": CommandSpec("HT"),                                   # ht
     b"\x0d": CommandSpec("CR"),                                   # cr
     b"\x1b\x64": CommandSpec("ESC d", 1),                         # esc_ld
     b"\x1b\x4a": CommandSpec("ESC J", 1),                         # esc_cj
@@ -136,7 +149,7 @@ COMMANDS: dict[bytes, CommandSpec] = {
     b"\x1b\x20": CommandSpec("ESC SP", 1),                        # esc_space
     b"\x1b\x24": CommandSpec("ESC $", 2),                         # esc_dollarssign
     b"\x1b\x5c": CommandSpec("ESC \\", 2),                        # esc_backslash
-    b"\x1b\x44": CommandSpec("ESC D", 0, _nul_terminated),        # esc_cd
+    b"\x1b\x44": CommandSpec("ESC D", 0, _tab_positions_length),  # esc_cd
     b"\x1b\x55": CommandSpec("ESC U", 1),                         # esc_cu
     b"\x1b\x56": CommandSpec("ESC V", 1),                         # esc_cv
     b"\x1b\x3d": CommandSpec("ESC =", 1),                         # esc_equal
@@ -161,8 +174,9 @@ COMMANDS: dict[bytes, CommandSpec] = {
     # Images
     b"\x1b\x2a": CommandSpec("ESC *", 3, _bit_image_length),      # esc_asterisk
     b"\x1d\x76\x30": CommandSpec("GS v 0", 5, _raster_length),    # gs_lv_0
-    b"\x1d\x28": CommandSpec("GS (", 3, _length_in_params(1)),    # gs_lparen_cl etc. (fn, pL, pH)
-    b"\x1d\x38\x4c": CommandSpec("GS 8 L", 4, _nv_graphics_length),  # gs_lparen_cl
+    b"\x1d\x28": CommandSpec("GS (", 3, _length_in_params(1)),    # gs_lparen_ce etc. (fn, pL, pH)
+    b"\x1d\x28\x4c": CommandSpec("GS ( L", 2, _length_in_params(0)),  # gs_lparen_cl (pL, pH)
+    b"\x1d\x38\x4c": CommandSpec("GS 8 L", 4, _graphics_length),     # gs_lparen_cl (p1-p4)
     # Barcodes and two-dimensional codes
     b"\x1d\x6b": CommandSpec("GS k", 1, _barcode_length),         # gs_lk
     b"\x1d\x77": CommandSpec("GS w", 1),                          # gs_lw

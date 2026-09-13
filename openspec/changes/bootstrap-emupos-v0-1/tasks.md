@@ -47,7 +47,7 @@
 - [x] 5.9 Fault behaviour: `paper-out`, `cover-open` and `offline` hold print data until the last is cleared; `paper-near-end` still prints; faults emit `printer.status.changed`.
 - [x] 5.10 Golden cases under `escpos/cases/` (from 1.4 plus hand-written ones) with PNG and text snapshots, and a raster benchmark case that fails CI if rendering a large image job regresses markedly.
 
-- [ ] 5.11 Layout commands found in real traffic: HT with ESC D tab positions, ESC SP, GS L, GS W, ESC $, ESC \\, and buffered graphics (GS ( L / GS 8 L functions 112 and 50), each with a fixture.
+- [x] 5.11 Layout commands found in real traffic: HT with ESC D tab positions, ESC SP, GS L, GS W, ESC $, ESC \\, and buffered graphics (GS ( L / GS 8 L functions 112 and 50), each with a fixture.
 
 ## 6. Cash drawer
 

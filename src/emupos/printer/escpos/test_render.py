@@ -5,7 +5,7 @@ import time
 
 import segno
 import zxingcpp
-from PIL import Image, ImageOps
+from PIL import Image, ImageChops, ImageOps
 
 from emupos.events import EventType
 from emupos.printer.test_support import Pos, image_of, ink_box
@@ -82,6 +82,199 @@ def test_font_b_cell_is_9_by_17_dots() -> None:
     assert image.height == 17
     assert box is not None
     assert 9 < box[2] <= 18  # the second A ends inside the second 9-dot cell
+
+
+# --- Tabs, spacing, margins and print positions -------------------------------------------
+
+
+def ink_columns(data: str | bytes) -> tuple[int, int]:
+    """Left and right (exclusive) ink columns of a one-line job."""
+    _, image = render(data)
+    box = ink_box(image)
+    assert box is not None
+    return box[0], box[2]
+
+
+B_LEFT, B_RIGHT = ink_columns("42 0a 1d 56 00")  # B's ink inside a cell at column 0
+
+
+def test_tabs_align_columns() -> None:
+    pos, image = render("1b 40 1b 44 0a 00 41 09 42 0a 1d 56 00")
+
+    b = ink_box(image.crop((12, 0, 576, image.height)))
+    assert b is not None
+    assert (b[0] + 12, b[2] + 12) == (120 + B_LEFT, 120 + B_RIGHT)  # B's cell starts at 120
+    assert pos.events_of(EventType.PRINTER_COMMAND_UNKNOWN) == []
+    assert pos.texts == ["A         B\n"]  # the tab becomes spaces up to column 10
+
+
+def test_default_tab_positions_are_every_8_characters() -> None:
+    pos, image = render("41 09 42 0a 1d 56 00")
+
+    b = ink_box(image.crop((12, 0, 576, image.height)))
+    assert b is not None
+    assert b[0] + 12 == 96 + B_LEFT
+    assert pos.texts == ["A       B\n"]
+
+
+def test_tab_positions_count_enlarged_characters_and_spacing() -> None:
+    # ESC D 2 while characters are double width with 2 dots of spacing: 2 x (12 + 2) x 2 = 56
+    job = "1b 20 02 1d 21 10 1b 44 02 00 1d 21 00 1b 20 00 09 42 0a 1d 56 00"
+
+    assert ink_columns(job) == (56 + B_LEFT, 56 + B_RIGHT)
+
+
+def test_tab_without_a_further_position_is_ignored() -> None:
+    pos, _ = render("1b 44 00 41 09 42 0a 1d 56 00")
+
+    assert pos.texts == ["AB\n"]
+
+
+def test_tab_past_the_print_area_continues_on_the_next_line() -> None:
+    pos, image = render("1d 57 60 00 1b 44 0a 00 41 09 42 0a 1d 56 00")
+
+    assert pos.texts == ["A\nB\n"]
+    assert image.height == 30 + 24
+
+
+def test_right_side_character_spacing() -> None:
+    pos, image = render(b"\x1b\x20\x04" + b"A" * 40 + b"\n\x1d\x56\x00")
+
+    assert pos.texts == ["A" * 36 + "\n" + "A" * 4 + "\n"]  # 576 / (12 + 4) = 36 columns
+    second = ink_box(image.crop((16, 0, 32, 24)))
+    first = ink_box(image.crop((0, 0, 16, 24)))
+    assert first == second
+
+
+def test_left_margin_and_print_area_width() -> None:
+    pos, image = render(b"\x1d\x4c\x30\x00\x1d\x57\x60\x00" + b"A" * 10 + b"\n\x1d\x56\x00")
+
+    assert pos.texts == ["A" * 8 + "\nAA\n"]  # 96 dots hold 8 cells
+    box = ink_box(image)
+    assert box is not None
+    assert box[0] >= 48
+    assert box[2] <= 48 + 96
+
+
+def test_justification_uses_the_print_area() -> None:
+    left, _ = ink_columns("48 45 4c 4c 4f 0a 1d 56 00")
+    centred, _ = ink_columns("1d 4c 30 00 1d 57 60 00 1b 61 01 48 45 4c 4c 4f 0a 1d 56 00")
+
+    assert centred - left == 48 + (96 - 60) // 2
+
+
+def test_margin_is_ignored_in_the_middle_of_a_line() -> None:
+    left, _ = ink_columns("41 1d 4c 30 00 42 0a 1d 56 00")
+
+    assert left < 12
+
+
+def test_absolute_print_position() -> None:
+    pos, image = render("41 1b 24 64 00 42 0a 1d 56 00")
+
+    b = ink_box(image.crop((12, 0, 576, image.height)))
+    assert b is not None
+    assert b[0] + 12 == 100 + B_LEFT
+    assert pos.texts == ["A       B\n"]
+
+
+def test_absolute_position_beyond_the_print_area_is_ignored() -> None:
+    assert ink_columns("1b 24 60 02 42 0a 1d 56 00") == (B_LEFT, B_RIGHT)
+
+
+def test_relative_print_position() -> None:
+    assert ink_columns("1b 5c 10 00 42 0a 1d 56 00") == (16 + B_LEFT, 16 + B_RIGHT)
+    assert ink_columns("1b 24 30 00 1b 5c f4 ff 42 0a 1d 56 00") == (36 + B_LEFT, 36 + B_RIGHT)
+    # a move to the left of the print area is ignored
+    assert ink_columns("1b 5c f4 ff 42 0a 1d 56 00") == (B_LEFT, B_RIGHT)
+
+
+def test_overprinted_characters_add_their_dots() -> None:
+    _, overprinted = render("41 1b 5c f4 ff 42 0a 1d 56 00")  # B printed over A
+    _, a = render("41 0a 1d 56 00")
+
+    assert overprinted.histogram()[0] > a.histogram()[0]
+    assert ImageChops.logical_and(overprinted, a).tobytes() == overprinted.tobytes()  # A kept
+
+
+# --- Buffered graphics ------------------------------------------------------------------------
+
+
+def graphics(
+    width: int, height: int, pixels: bytes, scale: int = 1, command: str = "GS ( L"
+) -> bytes:
+    parameters = bytes([0x30, 0x70, 0x30, scale, scale, 0x31]) + width.to_bytes(2, "little")
+    body = parameters + height.to_bytes(2, "little") + pixels
+    if command == "GS ( L":
+        return bytes.fromhex("1d 28 4c") + len(body).to_bytes(2, "little") + body
+    return bytes.fromhex("1d 38 4c") + len(body).to_bytes(4, "little") + body
+
+
+PRINT_GRAPHICS = bytes.fromhex("1d 28 4c 02 00 30 32")
+
+
+def test_buffered_graphics_print() -> None:
+    pixels = random.Random(5).randbytes(2 * 8)  # noqa: S311 (test data)
+
+    pos, image = render(graphics(16, 8, pixels) + PRINT_GRAPHICS + bytes.fromhex(CUT))
+
+    assert image.size == (576, 8)
+    assert image.crop((0, 0, 16, 8)).tobytes("raw", "1;I") == pixels
+    assert ink_box(image.crop((16, 0, 576, 8))) is None
+    assert pos.events_of(EventType.PRINTER_COMMAND_UNKNOWN) == []
+    assert pos.texts == ["[image 16x8]\n"]
+
+
+def test_gs_8_l_graphics_with_double_scaling_and_odd_width() -> None:
+    pixels = bytes([0b10000000, 0b01000000])  # 10 dots wide, 1 row: dots 0 and 9
+
+    pos, image = render(
+        graphics(10, 1, pixels, scale=2, command="GS 8 L")
+        + b"\x1d\x28\x4c\x02\x00\x30\x02\x1d\x56\x00"
+    )
+
+    assert image.height == 2
+    assert [x for x in range(24) if image.getpixel((x, 0)) == 0] == [0, 1, 18, 19]
+    assert pos.events_of(EventType.PRINTER_COMMAND_UNKNOWN) == []
+
+
+def test_graphics_follow_justification() -> None:
+    _, image = render(
+        b"\x1b\x61\x01" + graphics(16, 1, b"\xff\xff") + PRINT_GRAPHICS + bytes.fromhex(CUT)
+    )
+
+    assert ink_box(image) == (280, 0, 296, 1)
+
+
+def test_graphics_wider_than_the_print_area_are_not_printed() -> None:
+    pos = Pos()
+
+    pos.send(
+        b"\x1d\x57\x08\x00" + graphics(16, 1, b"\xff\xff") + PRINT_GRAPHICS + b"OK\n\x1d\x56\x00"
+    )
+
+    [unknown] = pos.events_of(EventType.PRINTER_COMMAND_UNKNOWN)
+    assert unknown.data["reason"] == "graphics wider than the print area"
+    assert pos.texts == ["O\nK\n"]  # an 8-dot print area still takes one character per line
+
+
+def test_printing_without_stored_graphics_prints_nothing() -> None:
+    pos = Pos()
+
+    pos.send(PRINT_GRAPHICS + b"\x1d\x56\x00")
+
+    assert pos.receipts == []
+    assert pos.events == []
+
+
+def test_multiple_tone_graphics_are_reported() -> None:
+    pos = Pos()
+    body = bytes([0x30, 0x70, 0x34, 1, 1, 0x31, 16, 0, 1, 0]) + b"\xff\xff"
+
+    pos.send(bytes.fromhex("1d 28 4c") + len(body).to_bytes(2, "little") + body + PRINT_GRAPHICS)
+
+    [unknown] = pos.events_of(EventType.PRINTER_COMMAND_UNKNOWN)
+    assert unknown.data["command"] == "GS ( L"
 
 
 # --- Raster and bit images --------------------------------------------------------------------

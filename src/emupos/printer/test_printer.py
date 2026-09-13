@@ -264,6 +264,15 @@ def test_nv_graphics_are_consumed_in_full() -> None:
     assert pos.texts == ["OK\n"]
 
 
+def test_nv_graphics_capacity_is_reported_as_zero() -> None:
+    pos = Pos()
+
+    pos.send("1d 28 4c 02 00 30 30 1d 28 4c 02 00 30 33")
+
+    assert pos.take() == bytes.fromhex("37 30 30 00 37 31 30 00")  # "0" bytes, then "0" free
+    assert pos.events == []
+
+
 # --- Job boundaries ---------------------------------------------------------------------------
 
 

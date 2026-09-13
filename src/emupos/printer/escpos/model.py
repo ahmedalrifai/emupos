@@ -25,6 +25,7 @@ from emupos.printer.escpos.glyphs import (
 from emupos.printer.escpos.render import (
     Boundary,
     Justification,
+    PrintArea,
     Receipt,
     RenderedReceipt,
     scale,
@@ -77,6 +78,7 @@ class Settings:
     """The print settings of one connection; ESC @ restores these defaults."""
 
     code_page: int
+    tab_positions: tuple[int, ...]  # esc_cd: in dots from the left edge of the print area
     font: FontName = "A"
     width: int = 1
     height: int = 1
@@ -85,6 +87,9 @@ class Settings:
     reverse: bool = False
     upside_down: bool = False
     justification: Justification = "left"
+    character_spacing: int = 0  # esc_space: right-side spacing in dots
+    left_margin: int = 0  # gs_cl, in dots
+    print_area_width: int | None = None  # gs_cw, in dots; None is the whole printable width
     line_spacing: int = DEFAULT_LINE_SPACING
     barcode_module_width: int = 3  # gs_lw default
     barcode_height: int = 162  # gs_lh default
@@ -108,8 +113,11 @@ class PrintModel:
         self._device_id = device_id
         self._profile = profile
         self._events: list[Event] = []
-        self.settings = Settings(code_page=profile.default_code_page)
+        self.settings = self._initial_settings()
         self.receipt = Receipt(profile.width_dots)
+        self._graphics: Image.Image | None = (
+            None  # gs_lparen_cl_fn112: graphics in the print buffer
+        )
 
     def process(self, token: Token) -> list[Event]:
         match token:
@@ -128,7 +136,7 @@ class PrintModel:
 
     def finish(self, boundary: Boundary) -> RenderedReceipt | None:
         """End the job: print the line buffer and return the receipt, if anything was printed."""
-        if not self.receipt.line_is_empty:
+        if not self.receipt.at_line_start:
             self._print_line(self.settings.line_spacing)
         receipt = self.receipt.render(boundary)
         self.receipt = Receipt(self._profile.width_dots)
@@ -140,16 +148,23 @@ class PrintModel:
         settings = self.settings
         font = self._profile.font_a if settings.font == "A" else self._profile.font_b
         code_page = self._profile.code_pages.get(settings.code_page)
+        spacing = (
+            settings.character_spacing * settings.width
+        )  # esc_space: enlarged with the character
+        area_width = self._print_area.width
         for byte in data:
             character = glyph_character(byte, code_page)
             image = cell_image(settings.font, (font.width, font.height), character, settings.style)
-            if not self.receipt.fits_on_line(image.width) and not self.receipt.line_is_empty:
+            advance = image.width + spacing
+            if self.receipt.position + advance > area_width and not self.receipt.at_line_start:
                 self._print_line(settings.line_spacing)  # wrap: the character starts the next line
-            self.receipt.add_to_line(image, dump_character(byte, code_page))
+            self.receipt.add_to_line(image, dump_character(byte, code_page), advance)
 
     def _print_line(self, feed: int, text_lines: int = 1) -> None:
         settings = self.settings
-        self.receipt.print_line(settings.justification, feed, text_lines, settings.upside_down)
+        self.receipt.print_line(
+            self._print_area, settings.justification, feed, text_lines, settings.upside_down
+        )
 
     def _line_feed(self, _command: Command) -> None:  # lf
         self._print_line(self.settings.line_spacing)
@@ -159,7 +174,44 @@ class PrintModel:
         self._print_line(lines * self.settings.line_spacing, text_lines=max(lines, 1))
 
     def _print_and_feed_dots(self, command: Command) -> None:  # esc_cj
-        self._print_line(command.params[0], text_lines=0 if self.receipt.line_is_empty else 1)
+        self._print_line(command.params[0], text_lines=0 if self.receipt.at_line_start else 1)
+
+    # --- horizontal position -----------------------------------------------------------------
+
+    def _horizontal_tab(self, _command: Command) -> None:  # ht
+        area_width = self._print_area.width
+        if self.receipt.position > area_width:  # already past the print area: tab on the next line
+            self._print_line(self.settings.line_spacing)
+        position = self.receipt.position
+        stop = next((tab for tab in self.settings.tab_positions if tab > position), None)
+        if stop is not None:  # ignored when no tab position is set further right
+            self._move_to(min(stop, area_width + 1))
+
+    def _set_tab_positions(self, command: Command) -> None:  # esc_cd: n x character width
+        values = command.data.removesuffix(b"\x00")
+        width = self._character_width()
+        self.settings.tab_positions = tuple(n * width for n in values)
+
+    def _set_absolute_position(self, command: Command) -> None:  # esc_dollarssign
+        position = int.from_bytes(command.params, "little")
+        if position <= self._print_area.width:  # a position beyond the print area is ignored
+            self._move_to(position)
+
+    def _set_relative_position(self, command: Command) -> None:  # esc_backslash
+        position = self.receipt.position + int.from_bytes(command.params, "little", signed=True)
+        if 0 <= position <= self._print_area.width:
+            self._move_to(position)
+
+    def _move_to(self, position: int) -> None:
+        """Move the print position; the text dump gets a space per character width skipped."""
+        skipped = max(position - self.receipt.position, 0)
+        self.receipt.move_to(position, " " * round(skipped / self._character_width()))
+
+    def _character_width(self) -> int:
+        """The current character width in dots, right-side spacing and enlargement included."""
+        settings = self.settings
+        cell = self._profile.font_a if settings.font == "A" else self._profile.font_b
+        return (cell.width + settings.character_spacing) * settings.width
 
     def _select_default_line_spacing(self, _command: Command) -> None:  # esc_2
         self.settings.line_spacing = DEFAULT_LINE_SPACING
@@ -169,9 +221,34 @@ class PrintModel:
 
     # --- print settings --------------------------------------------------------------------
 
-    def _initialize(self, _command: Command) -> None:  # esc_atsign: clears the line buffer too
-        self.settings = Settings(code_page=self._profile.default_code_page)
+    def _initialize(self, _command: Command) -> None:  # esc_atsign: clears the print buffer too
+        self.settings = self._initial_settings()
         self.receipt.discard_line()
+        self._graphics = None
+
+    def _initial_settings(self) -> Settings:
+        # esc_cd default: a tab position every 8 characters of the default font, up to 248
+        tabs = tuple(n * self._profile.font_a.width for n in range(8, 256, 8))
+        return Settings(code_page=self._profile.default_code_page, tab_positions=tabs)
+
+    def _set_character_spacing(self, command: Command) -> None:  # esc_space
+        self.settings.character_spacing = command.params[0]
+
+    def _set_left_margin(self, command: Command) -> None:  # gs_cl: only at the start of a line
+        if self.receipt.at_line_start:
+            self.settings.left_margin = int.from_bytes(command.params, "little")
+
+    def _set_print_area_width(self, command: Command) -> None:  # gs_cw: only at the start of a line
+        if self.receipt.at_line_start:
+            self.settings.print_area_width = int.from_bytes(command.params, "little")
+
+    @property
+    def _print_area(self) -> PrintArea:
+        """GS L and GS W, limited to the printable width as gs_cl and gs_cw describe."""
+        printable = self._profile.width_dots
+        left = min(self.settings.left_margin, printable)
+        width = self.settings.print_area_width
+        return PrintArea(left, printable - left if width is None else min(width, printable - left))
 
     def _select_print_mode(self, command: Command) -> None:  # esc_exclamation
         n = command.params[0]
@@ -205,11 +282,11 @@ class PrintModel:
 
     def _justification(self, command: Command) -> None:  # esc_la: only at the start of a line
         n = command.params[0]
-        if n in (0, 1, 2, 48, 49, 50) and self.receipt.line_is_empty:
+        if n in (0, 1, 2, 48, 49, 50) and self.receipt.at_line_start:
             self.settings.justification = ("left", "center", "right")[n % 48]
 
     def _upside_down(self, command: Command) -> None:  # esc_lbrace: only at the start of a line
-        if self.receipt.line_is_empty:
+        if self.receipt.at_line_start:
             self.settings.upside_down = bool(command.params[0] & 0x01)
 
     def _reverse(self, command: Command) -> None:  # gs_cb
@@ -254,6 +331,41 @@ class PrintModel:
             image = Image.frombytes("1", (width, height), command.data, "raw", "1;I")
             image = scale(image, *factors)
             self._print_block(image, f"[image {image.width}x{image.height}]")
+
+    def _graphics_command(self, command: Command) -> None:  # gs_lparen_cl: GS ( L and GS 8 L, m fn
+        data = command.data
+        match data[:2]:
+            case b"\x30\x70":  # fn 112 (gs_lparen_cl_fn112): store raster graphics
+                self._store_graphics(command)
+            case b"\x30\x02" | b"\x30\x32":  # fn 50 (gs_lparen_cl_fn50): print them
+                self._print_graphics(command)
+            case _:  # NV and download graphics, dot density, column format: not simulated
+                self._unknown(command)
+
+    def _store_graphics(self, command: Command) -> None:
+        # a bx by c xL xH yL yH d1...dk, with k = ceil(width / 8) x height
+        parameters, pixels = command.data[2:10], command.data[10:]
+        if len(parameters) < 8:
+            self._unknown(command)
+            return
+        tone, scale_x, scale_y, colour = parameters[:4]
+        width, height = parameters[4] + parameters[5] * 256, parameters[6] + parameters[7] * 256
+        row_bytes = (width + 7) // 8
+        valid = tone == 48 and colour == 49 and scale_x in (1, 2) and scale_y in (1, 2)
+        if not valid or not width or not height or len(pixels) != row_bytes * height:
+            self._unknown(command)  # multiple tones, other colours or inconsistent sizes
+            return
+        image = Image.frombytes("1", (row_bytes * 8, height), pixels, "raw", "1;I")
+        self._graphics = scale(image.crop((0, 0, width, height)), scale_x, scale_y)
+
+    def _print_graphics(self, command: Command) -> None:
+        graphics, self._graphics = self._graphics, None
+        if graphics is None:
+            return  # nothing stored: the printer prints nothing
+        if graphics.width > self._print_area.width:  # wider than the print area: not printed
+            self._unknown(command, reason="graphics wider than the print area")
+            return
+        self._print_block(graphics, f"[image {graphics.width}x{graphics.height}]")
 
     # --- barcodes and QR codes -------------------------------------------------------------
 
@@ -322,9 +434,9 @@ class PrintModel:
     # --- helpers ---------------------------------------------------------------------------
 
     def _print_block(self, image: Image.Image, text: str) -> None:
-        if not self.receipt.line_is_empty:
+        if not self.receipt.at_line_start:
             self._print_line(self.settings.line_spacing)
-        self.receipt.print_block(image, self.settings.justification, text)
+        self.receipt.print_block(image, self._print_area, self.settings.justification, text)
 
     def _hri_image(self, text: str) -> Image.Image:
         font = self.settings.hri_font
@@ -347,6 +459,13 @@ class PrintModel:
         "ESC J": _print_and_feed_dots,
         "ESC 2": _select_default_line_spacing,
         "ESC 3": _set_line_spacing,
+        "HT": _horizontal_tab,
+        "ESC D": _set_tab_positions,
+        "ESC $": _set_absolute_position,
+        "ESC \\": _set_relative_position,
+        "ESC SP": _set_character_spacing,
+        "GS L": _set_left_margin,
+        "GS W": _set_print_area_width,
         "ESC @": _initialize,
         "ESC !": _select_print_mode,
         "ESC E": _emphasis,
@@ -366,6 +485,8 @@ class PrintModel:
         "GS H": _hri_position,
         "GS f": _hri_font,
         "GS ( k": _two_dimensional_code,
+        "GS ( L": _graphics_command,
+        "GS 8 L": _graphics_command,
     }
 
 

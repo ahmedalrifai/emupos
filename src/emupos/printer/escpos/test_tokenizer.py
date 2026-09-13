@@ -99,13 +99,33 @@ def test_declared_lengths_consume_pdf417_and_nv_graphics_in_full() -> None:
         nv_graphics,
         nv_graphics_long,
     ]
-    assert names(tokens) == ["GS ( k", "GS (", "GS 8 L", "Text:OK"]
+    assert names(tokens) == ["GS ( k", "GS ( L", "GS 8 L", "Text:OK"]
 
 
 def test_bit_image_24_dot_mode_reads_three_bytes_per_column() -> None:
     tokens = tokens_of(bytes.fromhex("1b 2a 21 02 00 01 02 03 04 05 06 41"))
 
     assert names(tokens) == ["ESC *", "Text:A"]
+
+
+def test_tab_positions_end_at_nul() -> None:
+    assert names(tokens_of(bytes.fromhex("1b 44 08 10 00 41"))) == ["ESC D", "Text:A"]
+
+
+def test_tab_positions_end_before_a_value_that_does_not_ascend() -> None:
+    tokens = tokens_of(bytes.fromhex("1b 44 08 10 04 41"))
+
+    assert names(tokens) == ["ESC D", "Unknown:04", "Text:A"]
+    assert tokens[0] == Command("ESC D", bytes.fromhex("1b 44 08 10"), b"", b"\x08\x10", False)
+
+
+def test_tab_positions_end_after_32_values() -> None:
+    tokens = tokens_of(bytes.fromhex("1b 44") + bytes(range(1, 34)) + b"\x00")
+
+    assert names(tokens)[:2] == ["ESC D", "Text:!"]  # value 33 (0x21) is printed as text
+    assert tokens[0] == Command(
+        "ESC D", bytes.fromhex("1b 44") + bytes(range(1, 33)), b"", bytes(range(1, 33)), False
+    )
 
 
 def test_feed_and_cut_takes_an_extra_byte() -> None:
