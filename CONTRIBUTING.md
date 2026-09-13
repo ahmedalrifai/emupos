@@ -7,7 +7,7 @@ Thanks for helping. emupos pretends to be POS hardware on the wire, so most cont
 You need [uv](https://docs.astral.sh/uv/). It installs the right Python for you.
 
 ```sh
-git clone https://github.com/emupos/emupos.git
+git clone https://github.com/ahmedalrifai/emupos.git
 cd emupos
 uv sync
 uv run emupos --version

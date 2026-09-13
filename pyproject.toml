@@ -39,9 +39,9 @@ dependencies = [
 emupos = "emupos.cli.app:main"
 
 [project.urls]
-Homepage = "https://github.com/emupos/emupos"
-Issues = "https://github.com/emupos/emupos/issues"
-Changelog = "https://github.com/emupos/emupos/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/ahmedalrifai/emupos"
+Issues = "https://github.com/ahmedalrifai/emupos/issues"
+Changelog = "https://github.com/ahmedalrifai/emupos/blob/main/CHANGELOG.md"
 
 [dependency-groups]
 dev = [

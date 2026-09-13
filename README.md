@@ -66,7 +66,7 @@ pip install emupos            # for example inside a CI virtual environment
 From a clone of the repository:
 
 ```sh
-git clone https://github.com/emupos/emupos.git
+git clone https://github.com/ahmedalrifai/emupos.git
 cd emupos
 uv run emupos run --demo
 ```
