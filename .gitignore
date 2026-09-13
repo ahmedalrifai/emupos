@@ -20,3 +20,8 @@ receipts/
 .idea/
 .vscode/
 .DS_Store
+
+# Spike results (send them back instead of committing)
+spikes/**/result-*.json
+spikes/**/snmp-log.jsonl
+spikes/**/jobs/
