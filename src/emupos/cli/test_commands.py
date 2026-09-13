@@ -1,6 +1,7 @@
 """Commands without a running simulator: help, usage errors, exit status 3, the API address."""
 
 import json
+import re
 import sys
 from importlib.metadata import version
 
@@ -15,8 +16,10 @@ FAULT_NAMES = ("paper-near-end", "paper-out", "cover-open", "offline")
 
 
 def words(text: str) -> str:
-    """Usage errors are drawn in a wrapped panel; compare their words only."""
-    return " ".join(text.replace("│", " ").split())
+    """Help and usage errors are drawn in wrapped panels, styled when Typer forces a terminal
+    (it does under GITHUB_ACTIONS): compare their words only."""
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", text)
+    return " ".join(plain.replace("│", " ").split())
 
 
 def unused_api() -> str:
@@ -76,7 +79,7 @@ def test_scale_set_help_describes_its_arguments() -> None:
     result = runner.invoke(app, ["scale", "set", "--help"])
     assert result.exit_code == 0
     for text in ("VALUE", "--device", "--unstable"):
-        assert text in result.stdout
+        assert text in words(result.stdout)
 
 
 def test_simulator_not_running_exits_3_naming_the_url() -> None:

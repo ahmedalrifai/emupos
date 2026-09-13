@@ -75,6 +75,7 @@ async def print_bytes(simulator: Simulator, data: bytes) -> None:
 
 
 def open_serial_client(simulator: Simulator, device_id: str) -> int:
+    assert sys.platform != "win32"  # serial tests skip on Windows; this tells the type checker
     import tty
 
     link = simulator.runtime(device_id).endpoints[0].link_path
@@ -406,6 +407,7 @@ async def wait_for_http(client: httpx.AsyncClient) -> None:
     not POSIX, reason="existing serial device paths are supported on macOS and Linux"
 )
 async def test_scale_on_an_existing_serial_device_path(tmp_path: Path) -> None:
+    assert sys.platform != "win32"  # skipped on Windows; this tells the type checker
     master, slave = os.openpty()  # stands in for a USB serial adapter such as /dev/ttyUSB0
     path = os.ttyname(slave)
     text = f"""
