@@ -47,7 +47,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ steps.tag.outputs.tag }}
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.1.0
       - name: Tag matches the package version
         env:
           TAG: ${{ steps.tag.outputs.tag }}
@@ -79,7 +79,7 @@ jobs:
         with:
           ref: ${{ needs.build.outputs.tag }}
           sparse-checkout: .github/scripts
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.1.0
         with:
           python-version: "3.13"
       - uses: actions/download-artifact@v8
