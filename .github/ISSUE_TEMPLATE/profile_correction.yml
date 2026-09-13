@@ -1,0 +1,29 @@
+name: Profile correction
+description: A built-in device profile has a wrong value, such as a code-page number or paper width.
+labels: [profile]
+body:
+  - type: input
+    id: profile
+    attributes:
+      label: Profile name
+      placeholder: e.g. xprinter-xp80t
+    validations:
+      required: true
+  - type: textarea
+    id: correction
+    attributes:
+      label: What is wrong and the correct value
+      placeholder: "code_pages: 22 is PC864 on my printer, not ..."
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: A photo of the printer's self-test page, or a link to the vendor manual page.
+    validations:
+      required: true
+  - type: input
+    id: firmware
+    attributes:
+      label: Device firmware version (if shown on the self-test page)

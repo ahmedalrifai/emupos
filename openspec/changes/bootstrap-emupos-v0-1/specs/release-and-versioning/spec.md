@@ -24,19 +24,19 @@ The emupos package SHALL be versioned `MAJOR.MINOR.PATCH` following Semantic Ver
 
 ### Requirement: Changelog
 
-The repository SHALL contain `CHANGELOG.md` with one section per released version, generated from merged pull request titles and grouped by change type. Every breaking change SHALL be listed under a `Breaking` heading in the section of the release that contains it. Dropping support for a Python version SHALL be listed as a breaking change.
+The repository SHALL contain `CHANGELOG.md` with one section per released version, generated from merged pull request titles and grouped by change type. Every breaking change SHALL be listed under the `⚠ BREAKING CHANGES` heading in the section of the release that contains it. Dropping support for a Python version SHALL be listed as a breaking change.
 
 #### Scenario: Breaking change is listed
 
 - **GIVEN** a release contains the merged pull request `feat(config)!: rename receipts_dir`
 - **WHEN** the release is published
-- **THEN** that release's section of `CHANGELOG.md` lists the change under `Breaking`
+- **THEN** that release's section of `CHANGELOG.md` lists the change under `⚠ BREAKING CHANGES`
 
 #### Scenario: Python version dropped
 
 - **GIVEN** a release stops supporting a Python version
 - **WHEN** the release is published
-- **THEN** its `CHANGELOG.md` section lists the dropped Python version under `Breaking`
+- **THEN** its `CHANGELOG.md` section lists the dropped Python version under `⚠ BREAKING CHANGES`
 
 ### Requirement: Single source for the package version
 

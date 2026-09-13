@@ -220,7 +220,7 @@ Output formats:
 
 ### D14. Versioning and distribution
 
-- **Semantic versioning.** Before 1.0, a minor release may contain breaking changes, and each one is listed under "Breaking" in `CHANGELOG.md`. After 1.0, standard SemVer applies.
+- **Semantic versioning.** Before 1.0, a minor release may contain breaking changes, and each one is listed under "⚠ BREAKING CHANGES" in `CHANGELOG.md`. After 1.0, standard SemVer applies.
 - **Three independent version numbers:**
   - the **package version**: single source in `pyproject.toml`; shown by `emupos --version` and the API health endpoint;
   - the **API version**: the `/api/v1` path; a breaking API change introduces `/api/v2`;
