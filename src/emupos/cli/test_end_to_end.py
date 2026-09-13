@@ -95,6 +95,7 @@ def simulator(tmp_path: Path) -> Iterator[Simulator]:
     env = {
         key: value for key, value in os.environ.items() if key not in {"NO_COLOR", "FORCE_COLOR"}
     }
+    env["TMPDIR"] = str(tmp_path)  # serial links go under tmp_path/emupos, never the user's TMPDIR
     with log.open("wb") as output:
         process = subprocess.Popen(  # noqa: S603 - runs this Python with fixed arguments
             [sys.executable, "-m", "emupos.cli.app", "run", "--config", str(config)],
