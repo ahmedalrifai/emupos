@@ -1,0 +1,2 @@
+[barcode EAN-13 4006381333931]
+[qr https://example.com]

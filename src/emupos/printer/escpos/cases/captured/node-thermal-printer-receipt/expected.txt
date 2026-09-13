@@ -1,0 +1,10 @@
+EMUPOS MARKET
+12 Example Street
+------------------------------------------------
+Tomatoes                       2            3.50
+TOTAL                                       7.00
+Thank you
+2x2
+[barcode EAN-13 4006381333931]
+[barcode CODE128 EMUPOS-128]
+[qr https://example.com]

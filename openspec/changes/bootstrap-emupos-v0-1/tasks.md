@@ -35,21 +35,21 @@
 
 ## 5. Receipt printer
 
-- [ ] 5.1 Incremental ESC/POS tokenizer: commands split across reads, unknown bytes produce `printer.command.unknown`, real-time byte patterns inside other commands' data are not misread, and incomplete commands at connection close are dropped with an event; fuzz with Hypothesis.
-- [ ] 5.2 Printer state (paper, cover, online, drawer pin level, faults) and real-time handling: `DLE EOT 1–4` replies computed from state and answered even while printing is blocked.
-- [ ] 5.3 `GS r` and Automatic Status Back (`GS a`) per connection, pushing status on enable and on every change.
-- [ ] 5.4 Print model for the supported command set: text styles, alignment, sizes, feeds, line spacing, cuts, and initialization; each command cites its manual section and has a fixture.
-- [ ] 5.5 Bitmap fonts: choose open-licensed fonts for Font A (12×24) and Font B (9×17), record their licences in `NOTICE`, and generate glyph tables for the supported code pages.
-- [ ] 5.6 1-bit renderer at the profile's dot width: text layout and wrapping, raster images (`GS v 0`), bit images (`ESC *`), barcodes (`GS k`) and QR codes (`GS ( k`) scaled to requested module sizes.
-- [ ] 5.7 Code-page selection with vendor number mapping from the profile; code pages without glyph tables render placeholders, decode in the text dump where a mapping exists, and emit `printer.codepage.unsupported`.
-- [ ] 5.8 Job boundaries (cut, connection close, idle timeout), per-connection job settings with shared printer state, and receipt storage (unique id, PNG and text dump in `receipts_dir`) emitting `printer.job.completed`.
-- [ ] 5.9 Fault behaviour: `paper-out`, `cover-open` and `offline` hold print data until the last is cleared; `paper-near-end` still prints; faults emit `printer.status.changed`.
-- [ ] 5.10 Golden cases under `escpos/cases/` (from 1.4 plus hand-written ones) with PNG and text snapshots, and a raster benchmark case that fails CI if rendering a large image job regresses markedly.
+- [x] 5.1 Incremental ESC/POS tokenizer: commands split across reads, unknown bytes produce `printer.command.unknown`, real-time byte patterns inside other commands' data are not misread, and incomplete commands at connection close are dropped with an event; fuzz with Hypothesis.
+- [x] 5.2 Printer state (paper, cover, online, drawer pin level, faults) and real-time handling: `DLE EOT 1–4` replies computed from state and answered even while printing is blocked.
+- [x] 5.3 `GS r` and Automatic Status Back (`GS a`) per connection, pushing status on enable and on every change.
+- [x] 5.4 Print model for the supported command set: text styles, alignment, sizes, feeds, line spacing, cuts, and initialization; each command cites its manual section and has a fixture.
+- [x] 5.5 Bitmap fonts: choose open-licensed fonts for Font A (12×24) and Font B (9×17), record their licences in `NOTICE`, and generate glyph tables for the supported code pages.
+- [x] 5.6 1-bit renderer at the profile's dot width: text layout and wrapping, raster images (`GS v 0`), bit images (`ESC *`), barcodes (`GS k`) and QR codes (`GS ( k`) scaled to requested module sizes.
+- [x] 5.7 Code-page selection with vendor number mapping from the profile; code pages without glyph tables render placeholders, decode in the text dump where a mapping exists, and emit `printer.codepage.unsupported`.
+- [x] 5.8 Job boundaries (cut, connection close, idle timeout), per-connection job settings with shared printer state, and receipt storage (unique id, PNG and text dump in `receipts_dir`) emitting `printer.job.completed`.
+- [x] 5.9 Fault behaviour: `paper-out`, `cover-open` and `offline` hold print data until the last is cleared; `paper-near-end` still prints; faults emit `printer.status.changed`.
+- [x] 5.10 Golden cases under `escpos/cases/` (from 1.4 plus hand-written ones) with PNG and text snapshots, and a raster benchmark case that fails CI if rendering a large image job regresses markedly.
 
 ## 6. Cash drawer
 
-- [ ] 6.1 `ESC p` on pin 2 or pin 5 opens the printer's drawer (waiting behind blocking faults), and `DLE DC4 fn 1` opens it immediately; `drawer.opened` is emitted only on a closed-to-open change.
-- [ ] 6.2 Drawer sensor level per `sensor_open_level` reflected in `DLE EOT 1`, `GS r 2` and Automatic Status Back; closing emits `drawer.closed`; the drawer never closes by itself.
+- [x] 6.1 `ESC p` on pin 2 or pin 5 opens the printer's drawer (waiting behind blocking faults), and `DLE DC4 fn 1` opens it immediately; `drawer.opened` is emitted only on a closed-to-open change.
+- [x] 6.2 Drawer sensor level per `sensor_open_level` reflected in `DLE EOT 1`, `GS r 2` and Automatic Status Back; closing emits `drawer.closed`; the drawer never closes by itself.
 
 ## 7. Weight scale
 
