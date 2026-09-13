@@ -14,7 +14,9 @@ import websockets
 
 from emupos.api.app import create_app
 from emupos.config import LoadedConfig, parse_config
-from emupos.daemon import Simulator, StartupError, run
+from emupos.daemon.runtime import StartupError
+from emupos.daemon.server import run
+from emupos.daemon.simulator import Simulator
 from emupos.events import PublishedEvent
 from emupos.printer.printer import Printer
 from emupos.scale.scale import Scale
@@ -222,7 +224,9 @@ async def test_idle_timeout_is_driven_by_the_daemon_timer(
     writer.write(bytes.fromhex("1b 40 48 69 0a"))  # no cut, connection stays open
     await writer.drain()
 
-    await wait_for(lambda: simulator.receipts["front"].get("front", "latest") is not None)
+    store = simulator.runtime("front").receipts
+    assert store is not None
+    await wait_for(lambda: store.get("front", "latest") is not None)
 
     assert (await api.get("/api/v1/devices/front/receipts/latest")).json()[
         "boundary"

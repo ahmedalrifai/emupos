@@ -26,7 +26,7 @@ IGNORED_KEYS = {"title", "description", "default", "examples"}
 def current_openapi() -> dict[str, Any]:
     from emupos.api.app import create_app
     from emupos.config import demo_config
-    from emupos.daemon import Simulator
+    from emupos.daemon.simulator import Simulator
 
     return create_app(Simulator(demo_config(platform="linux"))).openapi()
 

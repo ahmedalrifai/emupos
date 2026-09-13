@@ -81,9 +81,9 @@ ignore = [
 ]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
-# Design D2: device and protocol code is pure. I/O lives only in transports/, api/ and daemon.py.
-"asyncio".msg = "I/O belongs in transports/, api/ or daemon.py (design D2)"
-"socket".msg = "I/O belongs in transports/, api/ or daemon.py (design D2)"
+# Design D2: device and protocol code is pure. I/O lives only in transports/, api/ and daemon/.
+"asyncio".msg = "I/O belongs in transports/, api/ or daemon/ (design D2)"
+"socket".msg = "I/O belongs in transports/, api/ or daemon/ (design D2)"
 "ctypes".msg = "OS calls belong in transports/ (design D2)"
 "termios".msg = "Serial handling belongs in transports/ (design D2)"
 "serial".msg = "Serial handling belongs in transports/ (design D2)"
@@ -92,7 +92,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "src/emupos/transports/**" = ["TID251"]
 "src/emupos/api/**" = ["TID251"]
-"src/emupos/daemon.py" = ["TID251"]
+"src/emupos/daemon/**" = ["TID251"]
 "**/test_*.py" = ["S101"] # assert is how pytest tests work
 ".github/scripts/**" = ["TID251", "S101", "S310", "S603"] # release tooling: fixed commands against localhost
 

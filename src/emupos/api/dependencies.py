@@ -11,7 +11,8 @@ from fastapi import Depends
 from starlette.requests import HTTPConnection
 
 from emupos.api.errors import ApiError
-from emupos.daemon import DeviceRuntime, Simulator
+from emupos.daemon.runtime import DeviceRuntime
+from emupos.daemon.simulator import Simulator
 from emupos.printer.printer import Printer
 from emupos.scale.scale import Scale
 from emupos.scanner.scanner import Scanner

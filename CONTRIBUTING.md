@@ -27,10 +27,20 @@ uv run pytest           # tests (they live next to the code)
 ```
 src/emupos/
 ├── cli/          the `emupos` command (Typer)
-├── daemon.py     the only wiring file: config → devices → transports → api
+├── daemon/       the running simulator: wires config → devices → connections → api
+│   ├── simulator.py    devices, device output, timers, the physical-world actions
+│   ├── connections.py  opening TCP/serial connections and pumping bytes to devices
+│   ├── scans.py        delivering scans after their countdown
+│   ├── runtime.py      per-device runtime state, building devices from config
+│   └── server.py       `emupos run`: the simulator plus the control API until Ctrl+C
 ├── config.py     emupos.yaml and profile loading/validation
 ├── events.py     events, device Output, event bus
 ├── api/          local control API (FastAPI)
+│   ├── app.py          builds the app: middleware, error handlers, routers
+│   ├── dependencies.py the simulator and devices looked up by id
+│   ├── schemas.py      request and response bodies
+│   ├── errors.py, guard.py  error body, browser-request protection
+│   └── routes/         one router per resource: devices, printers, scales, scanners, ...
 ├── transports/   everything that touches the OS: TCP, pty, COM ports, SNMP, keystrokes
 ├── printer/      receipt printer; escpos/ holds the ESC/POS tokenizer, status and renderer
 ├── drawer/       cash drawer
@@ -40,7 +50,7 @@ src/emupos/
 └── profiles/     built-in device profiles (YAML)
 ```
 
-The rule that keeps this readable: **device and protocol code is pure.** It receives state and bytes and returns an `Output` (bytes to write, events to publish). Only `transports/`, `api/` and `daemon.py` may do I/O. Ruff enforces this: importing `asyncio`, `socket`, `ctypes`, `termios` or a serial library anywhere else fails lint.
+The rule that keeps this readable: **device and protocol code is pure.** It receives state and bytes and returns an `Output` (bytes to write, events to publish). Only `transports/`, `api/` and `daemon/` may do I/O. Ruff enforces this: importing `asyncio`, `socket`, `ctypes`, `termios` or a serial library anywhere else fails lint.
 
 Pure code never reads the clock. Functions that depend on time take `now` as an argument, so tests are instant and deterministic.
 

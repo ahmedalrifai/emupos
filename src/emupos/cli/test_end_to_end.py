@@ -3,7 +3,6 @@
 Posix only: the test stops the simulator with SIGINT, as Ctrl+C does, and uses a pty scale.
 """
 
-import inspect
 import json
 import os
 import signal
@@ -18,23 +17,12 @@ from typing import Any
 import pytest
 from typer.testing import CliRunner
 
-from emupos.api import devices as api_devices
 from emupos.cli.app import app
 from emupos.cli.client import Client
 from emupos.cli.output import CliError
 from emupos.transports.ports import tcp_port_free
 
-# Temporary: GET /api/v1/devices answers 500 while api/devices.py calls vars() on the slots
-# dataclass daemon.Endpoint. The marker disappears by itself once that line changes.
-API_DEVICES_BROKEN = "vars(endpoint)" in inspect.getsource(api_devices)
-pytestmark = [
-    pytest.mark.skipif(sys.platform == "win32", reason="uses SIGINT and a pty scale"),
-    pytest.mark.xfail(
-        API_DEVICES_BROKEN,
-        strict=True,
-        reason="api/devices.py: vars() on the slots dataclass Endpoint makes GET /devices fail",
-    ),
-]
+pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="uses SIGINT and a pty scale")
 
 runner = CliRunner()
 CONFIG = """\

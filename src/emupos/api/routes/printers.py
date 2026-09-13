@@ -31,7 +31,7 @@ async def close_drawer(printer: TargetPrinter, simulator: SimulatorDep) -> Respo
 
 @router.get("/devices/{device_id}/receipts")
 async def list_receipts(printer: TargetPrinter, simulator: SimulatorDep) -> list[ReceiptInfo]:
-    store = simulator.receipts[printer.device_id]
+    store = simulator.receipt_store(printer)
     return [_receipt_info(meta) for meta in store.list(printer.device_id)]
 
 
@@ -39,16 +39,14 @@ async def list_receipts(printer: TargetPrinter, simulator: SimulatorDep) -> list
 async def get_receipt(
     printer: TargetPrinter, receipt_id: str, simulator: SimulatorDep
 ) -> ReceiptInfo:
-    return _receipt_info(
-        _find(simulator.receipts[printer.device_id], printer.device_id, receipt_id)
-    )
+    return _receipt_info(_find(simulator.receipt_store(printer), printer.device_id, receipt_id))
 
 
 @router.get("/devices/{device_id}/receipts/{receipt_id}/image", response_class=Response)
 async def get_receipt_image(
     printer: TargetPrinter, receipt_id: str, simulator: SimulatorDep
 ) -> Response:
-    store = simulator.receipts[printer.device_id]
+    store = simulator.receipt_store(printer)
     meta = _find(store, printer.device_id, receipt_id)
     return Response(store.image(printer.device_id, meta.id), media_type="image/png")
 
@@ -57,7 +55,7 @@ async def get_receipt_image(
 async def get_receipt_text(
     printer: TargetPrinter, receipt_id: str, simulator: SimulatorDep
 ) -> Response:
-    store = simulator.receipts[printer.device_id]
+    store = simulator.receipt_store(printer)
     meta = _find(store, printer.device_id, receipt_id)
     return Response(store.text(printer.device_id, meta.id), media_type="text/plain; charset=utf-8")
 

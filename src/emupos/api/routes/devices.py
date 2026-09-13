@@ -7,7 +7,7 @@ from fastapi import APIRouter
 from emupos.api.dependencies import RuntimeDep, SimulatorDep
 from emupos.api.schemas import ConnectionInfo, DeviceInfo
 from emupos.config import ScannerDevice
-from emupos.daemon import DeviceRuntime
+from emupos.daemon.runtime import DeviceRuntime
 from emupos.printer.printer import Printer
 from emupos.scale.scale import Scale
 from emupos.scanner.scanner import Scanner

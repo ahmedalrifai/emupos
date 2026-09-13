@@ -16,7 +16,8 @@ from emupos.cli.output import CliError, console, table, warning
 from emupos.config import ScannerDevice, demo_config
 
 if TYPE_CHECKING:
-    from emupos.daemon import Endpoint, Simulator
+    from emupos.daemon.runtime import Endpoint
+    from emupos.daemon.simulator import Simulator
 
 
 def run(
@@ -42,15 +43,17 @@ def run(
             exit_code=2,
         )
     loaded = demo_config() if demo else load(config)
-    from emupos import daemon  # imported here: it loads the web server, which other commands skip
+    # imported here: the daemon loads the web server, which other commands skip
+    from emupos.daemon.runtime import StartupError
+    from emupos.daemon.server import serve
 
     out = console()
     handler = ConsoleHandler(out)
     logger = logging.getLogger("emupos")
     logger.addHandler(handler)
     try:
-        daemon.serve(loaded, lambda simulator: _started(out, simulator, demo))
-    except daemon.StartupError as error:
+        serve(loaded, lambda simulator: _started(out, simulator, demo))
+    except StartupError as error:
         raise CliError(str(error), code="startup_failed") from None
     finally:
         logger.removeHandler(handler)

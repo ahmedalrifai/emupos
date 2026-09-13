@@ -5,7 +5,7 @@ scan, inject a fault, close the drawer) and reports what devices did. A POS neve
 POS code talks to devices only through their real protocols.
 
 Route handlers are `async def` on purpose: FastAPI runs plain `def` handlers in a thread pool,
-and device state must only be touched from the event loop (see daemon.py).
+and device state must only be touched from the event loop (see daemon/simulator.py).
 """
 
 import ipaddress
@@ -13,11 +13,11 @@ from importlib.metadata import version
 
 from fastapi import APIRouter, FastAPI
 
-from emupos.api import barcodes, devices, events, health, printers, scales, scanners
 from emupos.api.errors import install_error_handlers
 from emupos.api.guard import BrowserRequestGuard
+from emupos.api.routes import barcodes, devices, events, health, printers, scales, scanners
 from emupos.api.schemas import ErrorResponse
-from emupos.daemon import Simulator
+from emupos.daemon.simulator import Simulator
 
 PREFIX = "/api/v1"
 ERROR_RESPONSES: dict[int | str, dict[str, object]] = {

@@ -54,7 +54,7 @@ Python's costs are known and bounded. No Python ESC/POS decoder exists, but in p
 
 ### D2. Pure device logic, I/O only at the edges
 
-Device and protocol code is pure: it takes the current state and incoming bytes, and returns reply bytes plus events. Only `transports/`, `api/` and `daemon.py` may perform I/O. A ruff `banned-api` rule enforces this: `asyncio`, `socket`, `ctypes`, `termios` and `serial*` are banned everywhere else, with per-file ignores for the three I/O locations.
+Device and protocol code is pure: it takes the current state and incoming bytes, and returns reply bytes plus events. Only `transports/`, `api/` and `daemon/` may perform I/O. A ruff `banned-api` rule enforces this: `asyncio`, `socket`, `ctypes`, `termios` and `serial*` are banned everywhere else, with per-file ignores for the three I/O locations.
 
 Time is passed in as an argument (`now: float`), never read inside pure code. Scale settling and scan timing are therefore deterministic in tests.
 
@@ -82,10 +82,10 @@ emupos/
 ├── pyproject.toml  uv.lock  README.md  CONTRIBUTING.md  CHANGELOG.md  LICENSE  NOTICE
 ├── src/emupos/
 │   ├── cli/                   # Typer app; one module per command group
-│   ├── daemon.py              # the only wiring file: config → devices → transports → api
+│   ├── daemon/                # the running simulator: simulator · connections · scans · runtime · server
 │   ├── config.py              # YAML loading, Pydantic models, JSON Schema export
 │   ├── events.py              # event types + in-process pub/sub
-│   ├── api/                   # FastAPI routes + event WebSocket
+│   ├── api/                   # app · dependencies · schemas · errors · guard · routes/ (one router per resource)
 │   ├── transports/            # tcp.py · pty.py · serial_port.py · snmp.py · keyboard/{windows,macos,x11}.py
 │   ├── printer/
 │   │   ├── printer.py         # state, faults, job boundaries
