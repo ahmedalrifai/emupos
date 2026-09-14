@@ -2,7 +2,7 @@
 
 A simulated scale with the `toledo8217-15kg` profile speaks the Mettler Toledo 8217 protocol on a serial port. Many POS systems read counter scales this way: the POS sends one letter, the scale answers with the weight or with a status byte.
 
-emupos implements the wire contract that common POS clients rely on, such as Odoo's public Toledo 8217 scale driver: 9600 baud, 7 data bits, even parity, the `W` weight request and the `E`…`F` echo probe. Anything else is answered as a bad command.
+emupos implements the wire contract that common POS clients rely on, such as Odoo's public Toledo 8217 scale driver: 9600 baud, 7 data bits, even parity, the `W` weight request and the `E`…`F` echo probe. Anything else is answered as a bad command. Odoo's driver is run against the simulated scale to check this: see [Checked against Odoo](#checked-against-odoo).
 
 The code is `src/emupos/scale/toledo8217/toledo8217.py`. Every dialogue on this page is also a test fixture in `src/emupos/scale/toledo8217/dialogues/`.
 
@@ -232,8 +232,37 @@ uv run --no-project --with pyserial python -c "import serial; s = serial.Serial(
 b'\x0201.250\r'
 ```
 
+## Checked against Odoo
+
+`scripts/odoo_toledo8217_conformance.py` runs Odoo's Toledo 8217 driver (the IoT box driver used by Odoo Point of Sale) against a simulated scale, the way the IoT box uses it: it probes the port, reads the weight after each change at the scale, and runs the reading loop that pushes new weights to the POS. Odoo's other parts (web server, IoT box services) are replaced by stubs.
+
+Odoo is LGPL-3.0, so its source is not part of this repository. The script downloads the two driver files at a pinned commit, checks their SHA-256 and uses them for that run only. It needs macOS or Linux and network access:
+
+```sh
+uv run --with pyserial python scripts/odoo_toledo8217_conformance.py
+```
+
+Result on macOS, September 2026, with Odoo 19.0 at commit [`60b50790b9`](https://github.com/odoo/odoo/tree/60b50790b9190be96db739ef3904303138db618f/addons/iot_drivers/iot_handlers/drivers) and pyserial 3.5. All 13 checks pass:
+
+| Check | Odoo reads |
+|---|---|
+| Echo probe (`Ehello`, then `F`) | a Toledo 8217 scale |
+| Stable 1250 g | 1.25 kg |
+| 1253 g (5 g division) | 1.255 kg |
+| 15000 g, exactly at capacity | 15.0 kg |
+| Empty scale | 0.0 kg |
+| Tare 200 g, gross 1450 g | 1.25 kg, in tare mode |
+| Tare 200 g, gross 100 g (net below zero) | error (0) |
+| 16000 g, over capacity | error (0) |
+| -100 g, under zero | error (0) |
+| Unstable 1250 g, before it settles | error (0) |
+| The same weight after settling | 1.25 kg |
+| Reading loop, weight changed to 2.5 kg and then 3 kg | pushes 2.5, then 3.0 |
+| Port opened at 9600 baud, 7 data bits, even parity | no framing warning |
+
+Odoo shows a status reply as 0 and does not tell the POS which bits were set. Odoo 18.0 has the same settings, weight and status handling. Odoo 17.0 has the same settings and weight pattern, but ignores status replies: while the scale is in motion or over capacity, the POS keeps the last weight it read. Only 19.0 was run.
+
 ## Limitations
 
 - Only `W`, `E` and `F` are commands. Any other byte gets the bad command reply; the scale cannot be zeroed or tared over the wire.
 - The serial port is created by emupos on macOS and Linux only. Opening an existing serial port (`serial: { port: ... }`, such as one end of a com0com pair on Windows) is not available yet, so the scale cannot run on Windows today.
-- emupos's tests use the dialogues on this page. They do not run any POS client's driver against the simulator.
