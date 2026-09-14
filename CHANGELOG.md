@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.2](https://github.com/ahmedalrifai/emupos/compare/v0.1.1...v0.1.2) (2026-09-14)
+
+
+### Bug Fixes
+
+* **printer:** accept the paper type commands Epson's Mac driver sends ([#12](https://github.com/ahmedalrifai/emupos/issues/12)) ([066cd69](https://github.com/ahmedalrifai/emupos/commit/066cd695ab0a91aae19cc80ae91cf895b800d4f4))
+
+
+### Documentation
+
+* add a code of conduct ([#9](https://github.com/ahmedalrifai/emupos/issues/9)) ([a8b5e38](https://github.com/ahmedalrifai/emupos/commit/a8b5e38cfa6565f95d52b2759883c8691721c2b8))
+
 ## [0.1.1](https://github.com/ahmedalrifai/emupos/compare/v0.1.0...v0.1.1) (2026-09-14)
 
 
