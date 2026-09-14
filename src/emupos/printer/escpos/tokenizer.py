@@ -153,6 +153,8 @@ COMMANDS: dict[bytes, CommandSpec] = {
     b"\x1b\x55": CommandSpec("ESC U", 1),                         # esc_cu
     b"\x1b\x56": CommandSpec("ESC V", 1),                         # esc_cv
     b"\x1b\x3d": CommandSpec("ESC =", 1),                         # esc_equal
+    b"\x1b\x63\x30": CommandSpec("ESC c 0", 1),                   # esc_lc_0
+    b"\x1b\x63\x31": CommandSpec("ESC c 1", 1),                   # esc_lc_1
     b"\x1b\x63\x33": CommandSpec("ESC c 3", 1),                   # esc_lc_3
     b"\x1b\x63\x34": CommandSpec("ESC c 4", 1),                   # esc_lc_4
     b"\x1b\x63\x35": CommandSpec("ESC c 5", 1),                   # esc_lc_5

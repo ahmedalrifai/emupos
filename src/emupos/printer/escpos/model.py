@@ -45,6 +45,8 @@ IGNORED_COMMANDS = frozenset(
         "FS .",  # fs_period: cancel Kanji mode
         "FS &",  # fs_ampersand: select Kanji mode
         "ESC =",  # esc_equal: select peripheral device
+        "ESC c 0",  # esc_lc_0: paper type for printing (roll paper is the only one)
+        "ESC c 1",  # esc_lc_1: paper type for command settings
         "ESC c 3",  # esc_lc_3: paper sensors for paper-end signals
         "ESC c 4",  # esc_lc_4: paper sensors that stop printing
         "ESC c 5",  # esc_lc_5: panel buttons
