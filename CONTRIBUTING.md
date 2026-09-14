@@ -2,6 +2,8 @@
 
 Thanks for helping. emupos pretends to be POS hardware on the wire, so most contributions are one of three kinds: a **device profile** (data), a **protocol or command** (small pure code), or a **platform fix** (OS-specific code in `transports/`).
 
+Everyone taking part in emupos follows the [Code of Conduct](CODE_OF_CONDUCT.md). Report conduct problems to the maintainer on Telegram: [@ahmedalrifai](https://t.me/ahmedalrifai).
+
 ## Setup
 
 You need [uv](https://docs.astral.sh/uv/). It installs the right Python for you.

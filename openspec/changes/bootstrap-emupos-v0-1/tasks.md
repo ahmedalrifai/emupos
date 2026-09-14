@@ -114,7 +114,7 @@
 - [x] 13.6 `docs/cli.md` generated from the Typer app, plus a CI step that regenerates it and fails when the committed file is out of date.
 - [x] 13.7 `docs/README.md` index linking every guide, and links to it from the main `README.md`.
 - [x] 13.8 `SECURITY.md`: supported versions, private vulnerability reporting through GitHub security advisories, and the local API's threat model (localhost only, browser-request protection, no authentication).
-- [ ] 13.9 `CODE_OF_CONDUCT.md` (Contributor Covenant) with the maintainer contact for reports.
+- [x] 13.9 `CODE_OF_CONDUCT.md` (Contributor Covenant) with the maintainer contact for reports.
 - [x] 13.10 `.github/ISSUE_TEMPLATE/`: bug report (asks for `emupos doctor --json` output, OS, config and a hex capture if relevant), device or protocol request (model, manual link, transport), and profile correction (e.g. code-page numbers, with a self-test page photo); plus `config.yml` pointing security reports to `SECURITY.md`.
 - [x] 13.11 `.github/pull_request_template.md`: Conventional Commit title reminder, linked issue, checklist for tests and fixtures added, manual section cited for new commands, and docs updated.
 
