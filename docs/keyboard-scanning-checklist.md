@@ -29,6 +29,7 @@ For every scan: run the command, then click into the target during the 3-second 
 
 - [ ] `emupos doctor` passes its keyboard checks.
 - [ ] `emupos scan 5901234123457`: a countdown is shown, `5901234123457` then Enter arrive in both targets, and the command exits with status 0.
+- [ ] `emupos scan 5901234123457` and leave the terminal focused (macOS, X11): the command exits with status 1 saying the terminal still has keyboard focus, and nothing is typed. Repeat inside tmux.
 - [ ] `emupos scan "Ab1-"`: the key logger shows `ShiftLeft`, then `KeyA` with Shift (`A`), `KeyB`, `Digit1`, `Minus`, `Enter`.
 - [ ] `suffix: tab` in the configuration (restart `emupos run`), `emupos scan 123`: `1 2 3` then `Tab`.
 - [ ] `suffix: none`: `emupos scan 123` types `123` and nothing after it.

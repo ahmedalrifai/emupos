@@ -3,9 +3,10 @@
 import contextlib
 import math
 import time
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
+from rich.console import Console
 from rich.status import Status
 from rich.text import Text
 
@@ -13,6 +14,8 @@ from emupos.cli.client import DeviceOption, api, device_path, pick_device
 from emupos.cli.output import CliError, console, kilograms
 from emupos.printer.printer import PrinterFault
 from emupos.scale.weights import parse_weight
+from emupos.scanner.scanner import Scanner, ScanRejectedError
+from emupos.transports.keyboard.focus import terminal_with_focus
 
 WEIGHT_FORMS = "a number with the unit kg or g, e.g. 1.25kg or 1250g"
 CONFIRM_SECONDS = 10  # cli spec: wait this long after typing was due to finish
@@ -34,7 +37,12 @@ def scan(
     device: DeviceOption = None,
     countdown: Annotated[
         int,
-        typer.Option(min=0, metavar="N", help="Seconds before typing starts, to focus the POS."),
+        typer.Option(
+            min=0,
+            metavar="N",
+            help="Seconds before the scan is delivered. For a keyboard scanner, click your POS "
+            "window during the countdown.",
+        ),
     ] = 3,
     unicode: Annotated[
         bool,
@@ -44,26 +52,43 @@ def scan(
         ),
     ] = False,
 ) -> None:
-    """Scan a barcode, then wait until the simulator confirms it was typed or written."""
+    """Scan a barcode, then wait until the simulator confirms it was typed or written.
+
+    A keyboard scanner types into the focused window. If this terminal still has focus when the
+    countdown ends, the scan is cancelled: typed here, the barcode and Enter would run as a command.
+    """
     client = api(ctx)
     scanner = pick_device(client, "scanner", device)
+    state = client.get(device_path(scanner))["state"]
+    keyboard = state.get("mode") == "keyboard"
+    _check_scan(scanner, state, data, countdown, unicode)
+    out = console()
     with client.events() as receive:  # subscribed before the request, so no delivery is missed
-        body: dict[str, object] = {"data": data, "countdown_seconds": countdown, "unicode": unicode}
+        if keyboard:
+            _count_down(out, countdown)
+            if (terminal := terminal_with_focus()) is not None:
+                raise CliError(
+                    f"scan cancelled: {terminal} still has keyboard focus, so the scan would be "
+                    "typed into this terminal and run as a command",
+                    "run the command again and click your POS window before the countdown ends",
+                    code="scan_cancelled",
+                )
+        remote_countdown = 0 if keyboard else countdown  # keyboard: counted down right here
+        body: dict[str, object] = {
+            "data": data,
+            "countdown_seconds": remote_countdown,
+            "unicode": unicode,
+        }
         accepted = client.post(device_path(scanner, "scans"), body)
-        deliver_at = time.monotonic() + countdown
-        delay_ms = client.get(device_path(scanner))["state"].get("inter_key_delay_ms", 0)
-        deadline = deliver_at + delay_ms * (len(data) + 1) / 1000 + CONFIRM_SECONDS
-        out = console()
+        deliver_at = time.monotonic() + remote_countdown
+        typing_seconds = state.get("inter_key_delay_ms", 0) * (len(data) + 1) / 1000
+        deadline = deliver_at + typing_seconds + CONFIRM_SECONDS
         status = out.status("") if out.is_terminal else contextlib.nullcontext()
         with status as spinner:
             while (remaining := deadline - time.monotonic()) > 0:
                 if isinstance(spinner, Status):
                     left = math.ceil(deliver_at - time.monotonic())
-                    spinner.update(
-                        f"Focus the POS window: typing starts in {left} s"
-                        if left > 0
-                        else f"Typing {data}"
-                    )
+                    spinner.update(f"Writing in {left} s" if left > 0 else f"Scanning {data}")
                 event = receive(min(0.25, remaining))
                 if (
                     event is not None
@@ -77,6 +102,28 @@ def scan(
         "check the `emupos run` output for a warning about this scan",
         code="scan_not_confirmed",
     )
+
+
+def _check_scan(
+    scanner: str, state: dict[str, Any], data: str, countdown: int, unicode: bool
+) -> None:
+    """Refuse invalid data before any countdown, with the simulator's own validation rules."""
+    try:
+        Scanner(scanner, state["mode"], state["suffix"], state["inter_key_delay_ms"]).request(
+            data, countdown, unicode, now=0.0
+        )
+    except ScanRejectedError as error:
+        raise CliError(error.message, error.fix, code="validation_error") from None
+
+
+def _count_down(out: Console, seconds: int) -> None:
+    status = out.status("") if out.is_terminal else contextlib.nullcontext()
+    end = time.monotonic() + seconds
+    with status as spinner:
+        while (left := end - time.monotonic()) > 0:
+            if isinstance(spinner, Status):
+                spinner.update(f"Click your POS window: typing starts in {math.ceil(left)} s")
+            time.sleep(min(0.1, left))
 
 
 # --- scale -----------------------------------------------------------------------------------

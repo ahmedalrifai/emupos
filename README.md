@@ -202,7 +202,7 @@ The protocol is described in [docs/protocols/toledo8217.md](docs/protocols/toled
 emupos scan 5901234123457
 ```
 
-Click into a text field during the 3-second countdown: emupos types `5901234123457` and Enter there, like a USB scanner. This needs the Accessibility permission on macOS ([guide](docs/macos-accessibility.md)) and an X11 session on Linux ([guide](docs/linux-x11.md)). It is not available on Windows yet.
+During the 3-second countdown, click the window that should receive the scan: emupos types `5901234123457` and Enter there, like a USB scanner. If the terminal you ran the command in still has focus when the countdown ends, emupos cancels the scan instead of typing it into your shell. This needs the Accessibility permission on macOS ([guide](docs/macos-accessibility.md)) and an X11 session on Linux ([guide](docs/linux-x11.md)). It is not available on Windows yet.
 
 ### 8. Stop
 
