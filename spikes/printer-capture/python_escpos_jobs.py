@@ -14,9 +14,7 @@ to produce realistic traffic; it is not an emupos dependency.
 import time
 
 from escpos.printer import Network
-from PIL import Image, ImageDraw, ImageFont
-
-ARABIC_FONT = "/System/Library/Fonts/GeezaPro.ttc"  # macOS; any Arabic TrueType font works
+from job_images import arabic_line, checkerboard
 
 
 def job(name: str) -> Network:
@@ -27,26 +25,6 @@ def job(name: str) -> Network:
 def finish(printer: Network) -> None:
     printer.close()
     time.sleep(0.5)  # let the capture server write the file before the next connection
-
-
-def checkerboard() -> Image.Image:
-    image = Image.new("1", (160, 64), 1)
-    draw = ImageDraw.Draw(image)
-    for y in range(0, 64, 16):
-        for x in range(0, 160, 16):
-            if (x + y) // 16 % 2 == 0:
-                draw.rectangle((x, y, x + 15, y + 15), fill=0)
-    draw.ellipse((56, 8, 104, 56), outline=0, width=4)
-    return image
-
-
-def arabic_line() -> Image.Image:
-    font = ImageFont.truetype(ARABIC_FONT, 36)
-    text = "المجموع: ١٢٫٥٠ د.ل"  # noqa: RUF001 (Arabic digits are intended)
-    image = Image.new("L", (576, 56), 255)
-    draw = ImageDraw.Draw(image)
-    draw.text((560, 4), text, font=font, fill=0, anchor="ra", direction="rtl", language="ar")
-    return image.point(lambda v: 0 if v < 128 else 255).convert("1")
 
 
 p = job("text-styles")
