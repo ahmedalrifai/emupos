@@ -15,6 +15,7 @@ htmlcov/
 
 # emupos runtime output
 receipts/
+/emupos.yaml
 
 # Editors and OS
 .idea/
