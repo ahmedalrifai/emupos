@@ -271,7 +271,7 @@ Some things cannot be simulated in software, or not on every operating system:
 
 ## Contributing and security
 
-Contributions are welcome: device profiles, protocols and platform fixes. Start with [CONTRIBUTING.md](CONTRIBUTING.md). Please report security problems privately, as described in [SECURITY.md](SECURITY.md).
+Contributions are welcome: device profiles, protocols and platform fixes. Start with [CONTRIBUTING.md](CONTRIBUTING.md). Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md). Please report security problems privately, as described in [SECURITY.md](SECURITY.md).
 
 ## Licence
 
