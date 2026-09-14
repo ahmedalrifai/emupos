@@ -6,12 +6,12 @@ terminal) is allowed under Accessibility, so `check_ready` asks Quartz before ev
 
 import importlib
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
 from emupos.scanner.keys import ENTER, LEFT_SHIFT, TAB, US_LAYOUT, Key, UnicodeText
+from emupos.transports.keyboard.focus import outermost_bundle, ps_ancestors
 from emupos.transports.keyboard.keyboard import KeyboardUnavailableError
 
 if sys.platform == "darwin":
@@ -87,23 +87,7 @@ class MacKeyboard:
 
 def _app_to_allow() -> str:
     """The app macOS attributes the permission to: the first .app among the parent processes."""
-    pid = os.getppid()
-    for _ in range(20):
-        try:
-            out = subprocess.run(  # noqa: S603 (fixed arguments)
-                ["/bin/ps", "-o", "ppid=,comm=", "-p", str(pid)],
-                capture_output=True,
-                text=True,
-                timeout=2,
-                check=False,
-            ).stdout.strip()
-        except (OSError, subprocess.TimeoutExpired):
-            break
-        parent, _, command = out.partition(" ")
-        if ".app/" in command:
-            bundle = command[: command.index(".app/") + len(".app")]  # outermost bundle
+    for _pid, executable in ps_ancestors():
+        if (bundle := outermost_bundle(executable)) is not None:
             return f"{Path(bundle).stem} ({bundle})"
-        if not parent.isdigit() or int(parent) <= 1:
-            break
-        pid = int(parent)
     return f"the app that started emupos (Python is {os.path.realpath(sys.executable)})"

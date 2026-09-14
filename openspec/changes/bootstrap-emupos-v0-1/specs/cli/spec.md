@@ -126,13 +126,26 @@ Commands that act on a device of a specific type (`receipt list`, `receipt show`
 
 ### Requirement: Scan command
 
-`emupos scan DATA [--device ID] [--countdown N] [--unicode]` SHALL request a scan of `DATA`, with a countdown of `N` seconds that defaults to 3. In an interactive terminal it SHALL display the remaining countdown so the user is able to focus the POS window. After the request is accepted it SHALL wait for the `scanner.scan.delivered` event whose `id` matches the accepted scan, and exit with status 0 when it arrives. It SHALL exit with status 1 when the scan is refused, printing the error's message and fix, or when the delivery event has not arrived 10 seconds after typing was due to finish (the countdown plus `inter_key_delay_ms` for each keystroke), in which case the message SHALL tell the user to check the `emupos run` output. `--unicode` SHALL request exact-character delivery.
+`emupos scan DATA [--device ID] [--countdown N] [--unicode]` SHALL request a scan of `DATA`, with a countdown of `N` seconds that defaults to 3. It SHALL validate `DATA` with the scanner's rules before any countdown starts. In an interactive terminal it SHALL display the remaining countdown so the user is able to focus the POS window. For a keyboard-mode scanner the countdown SHALL run in the command itself; when it ends, if keyboard focus is on the terminal application that runs the command (detected on macOS and on Linux X11, including through tmux), the command SHALL cancel the scan without requesting it, exit with status 1 and tell the user to click the POS window during the countdown, because the barcode and its Enter would otherwise run as a shell command. When focus cannot be determined the scan SHALL proceed. After the request is accepted the command SHALL wait for the `scanner.scan.delivered` event whose `id` matches the accepted scan, and exit with status 0 when it arrives. It SHALL exit with status 1 when the scan is refused, printing the error's message and fix, or when the delivery event has not arrived 10 seconds after typing was due to finish (the countdown plus `inter_key_delay_ms` for each keystroke), in which case the message SHALL tell the user to check the `emupos run` output. `--unicode` SHALL request exact-character delivery.
 
 #### Scenario: Scan with countdown
 
 - **GIVEN** the simulator runs one scanner `lane1`
 - **WHEN** the user runs `emupos scan 6291041500213`
 - **THEN** a countdown from 3 is displayed, the scan is delivered, and the command exits with status 0
+
+#### Scenario: Terminal still focused
+
+- **GIVEN** keyboard scanner `lane1` on macOS, and the terminal running the command still has keyboard focus when the countdown ends
+- **WHEN** the user runs `emupos scan 6291041500213`
+- **THEN** no scan is requested and nothing is typed
+- **AND** the command exits with status 1, names the terminal and tells the user to click the POS window during the countdown
+
+#### Scenario: Invalid data is refused before the countdown
+
+- **GIVEN** keyboard scanner `lane1`
+- **WHEN** the user runs `emupos scan كود42 --countdown 30` without `--unicode`
+- **THEN** the command exits with status 1 at once, and the fix mentions `--unicode`
 
 #### Scenario: Delivery not confirmed
 

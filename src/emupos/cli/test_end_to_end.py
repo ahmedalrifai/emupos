@@ -17,6 +17,7 @@ from typing import Any
 import pytest
 from typer.testing import CliRunner
 
+from emupos.cli import actions
 from emupos.cli.app import app
 from emupos.cli.client import Client
 from emupos.cli.output import CliError
@@ -45,6 +46,9 @@ devices:
     type: scanner
     mode: serial
     connections: [{{ tcp: {{ port: {lane1} }} }}]
+  - id: lane2
+    type: scanner
+    mode: keyboard
 """
 
 
@@ -135,7 +139,7 @@ def state(simulator: Simulator, device_id: str) -> Any:
 def test_simulator_session(simulator: Simulator, tmp_path: Path) -> None:
     listed = simulator.cli("devices", "--json")
     assert listed.exit_code == 0
-    assert [item["id"] for item in listed.json()] == ["front", "kitchen", "deli", "lane1"]
+    assert [item["id"] for item in listed.json()] == ["front", "kitchen", "deli", "lane1", "lane2"]
     plain = simulator.cli("devices")
     assert "kitchen" in plain.stdout
     assert "\x1b" not in plain.stdout
@@ -186,7 +190,7 @@ def test_simulator_session(simulator: Simulator, tmp_path: Path) -> None:
     assert simulator.cli("scale", "zero", "--device", "front").exit_code == 1  # wrong type
 
     # a serial scanner needs no keyboard permission
-    scanned = simulator.cli("scan", "2112345012506", "--countdown", "0")
+    scanned = simulator.cli("scan", "2112345012506", "--device", "lane1", "--countdown", "0")
     assert scanned.exit_code == 0, scanned.stderr
 
     # Ctrl+C
@@ -208,3 +212,28 @@ def test_simulator_session(simulator: Simulator, tmp_path: Path) -> None:
         assert expected in output
     assert "\x1b" not in output
     assert all(tcp_port_free("127.0.0.1", port) for port in simulator.ports)
+
+
+def test_keyboard_scan_is_cancelled_while_this_terminal_has_focus(
+    simulator: Simulator, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(actions, "terminal_with_focus", lambda: "Warp")
+
+    cancelled = simulator.cli("scan", "6291041500213", "--device", "lane2", "--countdown", "0")
+
+    assert cancelled.exit_code == 1
+    assert "scan cancelled: Warp still has keyboard focus" in cancelled.stderr
+    assert "click your POS window" in cancelled.stderr
+    simulator.process.send_signal(signal.SIGINT)
+    assert simulator.process.wait(timeout=15) == 0
+    assert "scanner.scan" not in simulator.output()  # nothing was requested, so nothing typed
+
+
+def test_invalid_keyboard_scan_is_refused_before_the_countdown(simulator: Simulator) -> None:
+    started = time.monotonic()
+
+    refused = simulator.cli("scan", "كود42", "--device", "lane2", "--countdown", "30")
+
+    assert refused.exit_code == 1
+    assert "unicode" in refused.stderr
+    assert time.monotonic() - started < 10  # refused at once, not after the 30-second countdown

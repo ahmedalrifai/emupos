@@ -65,6 +65,9 @@ $ emupos devices [OPTIONS]
 
 Scan a barcode, then wait until the simulator confirms it was typed or written.
 
+A keyboard scanner types into the focused window. If this terminal still has focus when the
+countdown ends, the scan is cancelled: typed here, the barcode and Enter would run as a command.
+
 **Usage**:
 
 ```console
@@ -78,7 +81,7 @@ $ emupos scan [OPTIONS] {data}
 **Options**:
 
 * `--device ID`: Device id. Optional when only one device of the type runs.
-* `--countdown N`: Seconds before typing starts, to focus the POS.  [default: 3; x&gt;=0]
+* `--countdown N`: Seconds before the scan is delivered. For a keyboard scanner, click your POS window during the countdown.  [default: 3; x&gt;=0]
 * `--unicode`: Type each character exactly, whatever the keyboard layout (for non-ASCII data).
 * `--help`: Show this message and exit.
 
