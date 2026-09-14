@@ -231,7 +231,7 @@ Only the PC437 code page has glyphs. Selecting another code page, or a number mi
 
 ### Consumed without any effect
 
-These change nothing on a receipt image, so emupos consumes them silently: `CR`, `GS b`, `FS .`, `FS &`, `ESC =`, `ESC c 3`, `ESC c 4`, `ESC c 5`, `ESC U`, `GS P`, `ESC S`.
+These change nothing on a receipt image, so emupos consumes them silently: `CR`, `GS b`, `FS .`, `FS &`, `ESC =`, `ESC c 0`, `ESC c 1`, `ESC c 3`, `ESC c 4`, `ESC c 5`, `ESC U`, `GS P`, `ESC S`.
 
 ### Consumed and reported as unknown
 
