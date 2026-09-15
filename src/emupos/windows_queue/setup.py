@@ -1,5 +1,8 @@
 """Creating and removing the Windows print queue of a simulated printer (design D7).
 
+PowerShell variable names ignore case: a script variable such as `$port` would overwrite the `$Port`
+passed in, so script variables never reuse an input's name (test_setup.py checks this).
+
 Each script runs in Windows PowerShell with the PrintManagement cmdlets and prints one JSON object:
 `{"ok": true, "notes": [...]}`, or `{"ok": false, "step": ..., "message": ..., "error_id": ...}`
 where `error_id` carries the HRESULT, e.g. `HRESULT 0x80070005,Add-PrinterPort`.
@@ -60,11 +63,11 @@ function Remove-QueuePort {
 _CREATE = r"""
 $step = 'Get-Printer'
 try {
-    $queue = Get-Printer -Name $Name -ErrorAction SilentlyContinue
-    $port = Get-PrinterPort -Name $Name -ErrorAction SilentlyContinue
-    if ($queue -and $port -and $queue.PortName -eq $Name -and $queue.DriverName -eq $Driver -and
-        $port.PrinterHostAddress -eq '127.0.0.1' -and $port.PortNumber -eq $Port -and
-        $port.SNMPEnabled -and $port.SNMPIndex -eq $Port) {
+    $existingQueue = Get-Printer -Name $Name -ErrorAction SilentlyContinue
+    $existingPort = Get-PrinterPort -Name $Name -ErrorAction SilentlyContinue
+    if ($existingQueue -and $existingPort -and $existingQueue.PortName -eq $Name -and $existingQueue.DriverName -eq $Driver -and
+        $existingPort.PrinterHostAddress -eq '127.0.0.1' -and $existingPort.PortNumber -eq $Port -and
+        $existingPort.SNMPEnabled -and $existingPort.SNMPIndex -eq $Port) {
         Emit @{ ok = $true; changed = $false; notes = @() }
     }
     if (-not (Get-PrinterDriver -Name $Driver -ErrorAction SilentlyContinue)) {
@@ -72,8 +75,8 @@ try {
         Add-PrinterDriver -Name $Driver
         [void]$notes.Add("installed the '$Driver' printer driver")
     }
-    if ($queue) { $step = 'Remove-Printer'; Remove-Printer -Name $Name }
-    if ($port) { $step = 'Remove-PrinterPort'; Remove-QueuePort }
+    if ($existingQueue) { $step = 'Remove-Printer'; Remove-Printer -Name $Name }
+    if ($existingPort) { $step = 'Remove-PrinterPort'; Remove-QueuePort }
     $step = 'Add-PrinterPort'
     Add-PrinterPort -Name $Name -PrinterHostAddress '127.0.0.1' -PortNumber $Port -SNMP $Port -SNMPCommunity 'public'
     $step = 'Add-Printer'
