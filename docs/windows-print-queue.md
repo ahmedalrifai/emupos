@@ -9,7 +9,7 @@ A print queue is **one-way**: see [Status replies](#status-replies-do-not-come-b
 You need:
 
 - `emupos run` running, with a printer that has a `tcp` connection (`connections: [ { tcp: { port: 9100 } } ]`);
-- a terminal opened with **Run as administrator**;
+- permission to manage printers. Windows decides this per account: on a test PC with an administrator account and UAC on, a normal terminal could create and remove queues. If Windows refuses, emupos says so; then open the terminal with **Run as administrator**;
 - the Print Spooler service running (it is on most machines).
 
 ```powershell
@@ -66,7 +66,7 @@ Set-Service SNMP -StartupType Disabled
 emupos setup print-queue --device front --remove
 ```
 
-This deletes the queue and its port, from a terminal opened with "Run as administrator". It does not need `emupos run`. Windows can keep a port "in use" for a moment after its queue is deleted; emupos retries, and if the port is still held it restarts the Print Spooler, which briefly interrupts other printing on the machine.
+This deletes the queue and its port. It does not need `emupos run`, and needs the same permission as creating the queue. Windows can keep a port "in use" for a moment after its queue is deleted; emupos retries, and if the port is still held it restarts the Print Spooler, which briefly interrupts other printing on the machine.
 
 ## Troubleshooting
 

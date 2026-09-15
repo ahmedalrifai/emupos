@@ -326,10 +326,12 @@ def check_snmp_port(windows: WindowsFacts) -> Check:
     return Check(
         "snmp",
         "fail" if windows.queues else "warn",
-        f"{snmp.PORT_IN_USE}{_held_by(windows.snmp_owners)}",
+        snmp.PORT_IN_USE.replace(
+            " is in use,", f" is in use{_held_by(windows.snmp_owners, ' (held by {})')},"
+        ),
         snmp.STOP_SNMP_SERVICE,
     )
 
 
-def _held_by(owners: list[str] | None) -> str:
-    return f", held by {', '.join(owners)}" if owners else ""
+def _held_by(owners: list[str] | None, template: str = ", held by {}") -> str:
+    return template.format(", ".join(owners)) if owners else ""

@@ -104,7 +104,7 @@ def test_snmp_port_taken_by_another_program(
 
     assert check.status == status
     assert '"SNMP Service"' in check.message
-    assert "snmp.exe" in check.message
+    assert "is in use (held by snmp.exe), usually by" in check.message
     assert check.fix is not None
     assert "Stop-Service SNMP" in check.fix
 
