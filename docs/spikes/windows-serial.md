@@ -25,7 +25,7 @@ Status: run; driver blocked, backend not testable · Date: 2026-09-15 · Run by:
 
 ## Observations
 
-1. Install prompts and warnings: the note records none, but it was the runbook's pre-filled text, so treat it as unconfirmed.
+1. Install prompts and warnings: none (confirmed in the recheck).
 2. Driver state (`Get-PnpDevice`): "com0com - bus for serial port pair emulator 0 (COM# <-> COM#)", class CNCPorts, Status **Error**, ConfigManagerErrorCode **CM_PROB_UNSIGNED_DRIVER** (Code 52). Device Manager: "Windows cannot verify the digital signature for the drivers required for this device … (Code 52)". Code Integrity log, event 3004 at 18:46:23 local: "Windows is unable to verify the image integrity of the file \Device\HarddiskVolume4\Windows\System32\drivers\com0com.sys because file hash could not be found on the system."
 3. Ports listed under "Ports (COM & LPT)" and in `GetPortNames()`: only `COM1`, before and after. No com0com ports were created.
 4. Results (from `result-*.json`): not run. With the driver blocked there was no COM5/COM6 pair, so steps 3.6 and 3.7 were skipped.

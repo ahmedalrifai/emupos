@@ -180,7 +180,7 @@ On Linux, keyboard mode SHALL type through X11 only. Before accepting a keyboard
 
 ### Requirement: Windows privilege limitation
 
-Windows discards keystrokes injected into a window running at a higher privilege level than the sending process, and does not always report that it did so. The Windows documentation SHALL state that keyboard-mode scans do not reach such a window, that the simulator and the POS MUST run at the same privilege level, and that the simulator is not able to detect every discarded scan. When Windows reports that fewer keystrokes were accepted than were sent, the simulator SHALL print a warning in the `emupos run` output naming this limitation and SHALL NOT publish `scanner.scan.delivered` for that scan.
+Windows discards keystrokes injected into a window running at a higher privilege level than the sending process, and still reports those keystrokes as accepted. The Windows documentation SHALL state that keyboard-mode scans do not reach such a window, that the simulator and the POS MUST run at the same privilege level, and that the simulator is not able to detect such discarded scans. When Windows reports that fewer keystrokes were accepted than were sent, the simulator SHALL print a warning in the `emupos run` output naming this limitation and SHALL NOT publish `scanner.scan.delivered` for that scan.
 
 #### Scenario: Documented limitation
 
