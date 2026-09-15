@@ -69,7 +69,7 @@ Device code receives an `asyncio.StreamReader` and `StreamWriter` and never know
 |---|---|
 | TCP | `asyncio.start_server` |
 | pty (macOS/Linux) | `os.openpty()` in raw mode, wrapped via `loop.connect_read_pipe` / `connect_write_pipe` (verified on macOS) |
-| COM port (Windows) | serialx's asyncio support, or pyserial in a worker thread bridged to streams as a fallback |
+| COM port (Windows) | serialx's asyncio support, or pyserial in a worker thread bridged to streams as a fallback (not yet compared: com0com could not load in the spike) |
 
 The simulator keeps the pty's slave end open so a POS can disconnect and reconnect, and publishes a stable symlink (for example `$TMPDIR/emupos/deli`) so POS configuration survives restarts.
 
@@ -129,9 +129,9 @@ One state object holds: paper (ok / near end / out), cover (closed / open), onli
 
 ### D7. Windows print queue: generic driver + minimal SNMP responder
 
-`emupos setup print-queue` uses the `Add-PrinterPort` and `Add-Printer` PowerShell cmdlets. It creates a Standard TCP/IP port targeting `127.0.0.1:<printer port>` and a queue using the built-in "Generic / Text Only" driver, which passes the application's bytes through unchanged. `--remove` undoes it.
+`emupos setup print-queue` uses the `Add-PrinterPort` and `Add-Printer` PowerShell cmdlets. It creates a Standard TCP/IP port targeting `127.0.0.1:<printer port>` and a queue using the built-in "Generic / Text Only" driver, which passes raw jobs through unchanged. Text printed from ordinary applications (Notepad, `Out-Printer`) is converted by the driver to plain text with CR LF and a closing form feed, and characters outside its code page, such as Arabic, become `.`. `--remove` undoes it.
 
-Windows polls SNMP on UDP 161 to decide whether the queue is online, so emupos runs a minimal SNMPv1/v2c GET/GETNEXT responder, bound to 127.0.0.1, answering printer-status objects from printer state. The exact object list is confirmed by a spike (see tasks).
+Windows polls SNMP on UDP 161 to decide whether the queue is online, so emupos runs a minimal SNMPv1/v2c GET/GETNEXT responder, bound to 127.0.0.1, answering printer-status objects from printer state. The spike (1.3) found that Windows sends SNMP v1: GETNEXT `1.3.6.1.4.1.2699.1.2` and GET `sysDescr.0` every 10 minutes, and GET of hrDeviceStatus, hrPrinterStatus and hrPrinterDetectedErrorState for the port's SNMP index about every 10 minutes while the printer is healthy, every 30 to 60 s while it reports an error, and every 60 s while it does not answer. running/idle/`00` shows Idle, down/other with `08` Door open and with `02` Offline; a low-paper warning (`80`) shows nothing; no answer shows Offline. Each printer's port gets its own SNMP index, which Windows puts in every status request.
 
 - **Documented limit:** this path is one-way. A POS printing through a queue never receives `DLE EOT` replies; status testing requires raw TCP or serial.
 - **Alternatives:** pysnmp (heavier dependency for a handful of objects); telling users to untick "SNMP Status Enabled" (a manual step, and the queue could no longer show faults).
@@ -160,7 +160,7 @@ Validation rejects wrong lengths, a missing or misplaced check position, and val
 
 | OS | Mechanism |
 |---|---|
-| Windows | `ctypes` `SendInput` with virtual-key codes |
+| Windows | `ctypes` `SendInput` with virtual-key codes and scan codes |
 | macOS | pyobjc Quartz `CGEventPost`, after checking Accessibility trust |
 | Linux X11 | XTest via `ctypes` |
 
@@ -261,11 +261,13 @@ Output formats:
 
 ## Risks / Trade-offs
 
-- **[com0com blocked by Secure Boot (Code 52) on some Windows 11 machines]** → `emupos doctor` detects it and links a guide; TCP devices are unaffected; the Windows spike confirms current behaviour before features are built.
+- **[com0com 3.0.0.0 blocked by Secure Boot (Code 52) on Windows 11]** (confirmed by spike 1.1 on build 26200) → `emupos doctor` detects it and links a guide listing the alternatives; TCP devices are unaffected.
 - **[Virtual ports on macOS/Linux do not appear in port lists or Web Serial]** → Documented: the POS opens the printed path directly. Browser POS apps using Web Serial cannot use simulated serial devices.
 - **[Parity and data bits cannot be observed on Linux ptys, nor any settings on Windows COM pairs]** → Framing mismatches are warned about where observable (macOS fully, Linux baud only) and documented elsewhere.
 - **[macOS keystroke posting fails silently without Accessibility permission]** → Trust is checked before every scan, failing loudly with the exact settings path.
-- **[Windows UIPI blocks typing into an elevated POS window]** → Documented; run both at the same privilege level.
+- **[Windows UIPI blocks typing into an elevated POS window]** → Documented; run both at the same privilege level. In spike 1.2 `SendInput` still reported every keystroke as accepted, so the simulator cannot rely on the count to warn.
+- **[Windows shows a new printer fault only at its next SNMP poll, up to about 10 minutes later]** → Documented in the print-queue guide; faults clear within a minute because Windows polls a printer in error every 30 to 60 s.
+- **[Another program holds a default TCP port, such as Logitech G HUB's updater on 9100]** → `emupos doctor` names the process; the user picks another port in `emupos.yaml`.
 - **[Print-queue path cannot report status to the POS]** → Documented as a Windows limitation; raw TCP and serial remain available for status testing.
 - **[Glyph shapes differ from printer ROM fonts]** → The promise is dot-accurate geometry, not identical glyphs; golden tests pin geometry.
 - **[serialx has a single maintainer; pyserial has had no release since 2020]** → The COM transport is one small file with a pyserial-in-thread fallback.
@@ -278,9 +280,8 @@ Not applicable: this is the first release. A broken release is yanked on PyPI an
 
 ## Open Questions
 
-- Which SNMP objects does the Windows 11 Standard TCP/IP port monitor query, and which values mean online, offline and paper out? (Spike.)
-- Does serialx behave reliably against com0com pairs (open/close cycles, writes while the peer is closed), or should the pyserial thread fallback be the default? (Spike.)
-- Do virtual-key-code injections produce the same `KeyboardEvent.code` values as a real USB scanner in browsers, Electron, WPF and Java apps? (Spike.)
+- Does paper out (hrPrinterDetectedErrorState `40`) show as an error in Windows, and do two queues on 127.0.0.1 report separately by SNMP index? Spike 1.3 answered the object list and the ready, door-open and offline values, but Windows sent no status poll during the paper-out and two-queue runs. (Re-check in 10.5.)
+- Is serialx or pyserial in a worker thread the reliable Windows COM backend? Spike 1.1 could not compare them because com0com 3.0.0.0 does not load with Secure Boot on; the comparison needs another COM pair (a signed virtual serial port driver, Secure Boot off, or two USB serial adapters with a null-modem cable).
+- Do injected keystrokes produce the same `KeyboardEvent.code` values as a real USB scanner in Electron, WPF and Java apps? Spike 1.2 confirmed US-keyboard `code`, `key` and keyCode values in Chromium browsers on Windows and macOS, without a real scanner to compare; the Linux X11 run is still to do.
 - Which open-licensed bitmap fonts best approximate Font A (12×24) and Font B (9×17)? Terminus (OFL) offers 12×24.
 - Xprinter's Arabic code-page numbers are unconfirmed; the profile ships with them marked unverified until checked against a printer self-test page.
-- Can com0com be installed on GitHub-hosted Windows runners for serial integration tests, or do those tests run only locally?

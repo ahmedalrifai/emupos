@@ -109,7 +109,7 @@ In keyboard mode with `unicode` false, each character SHALL be typed as the phys
 
 ### Requirement: Exact-character typing
 
-In keyboard mode with `unicode` true, the simulator SHALL type each character of `data` exactly, independent of the active keyboard layout. The suffix SHALL still be typed as its key.
+In keyboard mode with `unicode` true, the simulator SHALL type each character of `data` exactly, independent of the active keyboard layout. The suffix SHALL still be typed as its key. Characters typed this way carry no physical key, so an application that reads the key position (for example `KeyboardEvent.code` in a browser) does not see the keys a scanner would press; the documentation SHALL state this.
 
 #### Scenario: Arabic characters typed exactly
 

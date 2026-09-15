@@ -26,3 +26,4 @@ receipts/
 spikes/**/result-*.json
 spikes/**/snmp-log.jsonl
 spikes/**/jobs/
+spikes/keyboard-wedge/*.json
