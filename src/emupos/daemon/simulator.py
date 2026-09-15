@@ -7,6 +7,8 @@ so no locks are needed. The loop's monotonic clock is the `now` passed to device
 """
 
 import asyncio
+import logging
+import sys
 from collections.abc import Coroutine
 from datetime import UTC, datetime
 from pathlib import Path
@@ -23,10 +25,20 @@ from emupos.scale.scale import Scale
 from emupos.scanner.scanner import AcceptedScan, Scanner
 from emupos.transports.errors import EndpointUnavailableError
 from emupos.transports.keyboard.keyboard import Keyboard, system_keyboard
+from emupos.transports.udp import serve_udp
+from emupos.windows_queue import snmp
+
+logger = logging.getLogger("emupos")
 
 
 class Simulator:
-    def __init__(self, loaded: LoadedConfig, *, link_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        loaded: LoadedConfig,
+        *,
+        link_dir: Path | None = None,
+        snmp_port: int | None = snmp.PORT if sys.platform == "win32" else None,
+    ) -> None:
         self.loaded = loaded
         self.bus = EventBus()
         self.startup_events: tuple[PublishedEvent, ...] = ()
@@ -38,6 +50,16 @@ class Simulator:
         )
         self._tasks: set[asyncio.Task[None]] = set()
         self._keyboard: Keyboard | None = None
+        self._snmp_port = snmp_port
+        self._snmp: asyncio.DatagramTransport | None = None
+        # A queue's SNMP index is its printer's TCP port (see `emupos setup print-queue`).
+        self._snmp_printers = {
+            connection.tcp.port: runtime.device
+            for runtime in self._runtimes.values()
+            if isinstance(runtime.device, Printer)
+            for connection in runtime.config.connections
+            if connection.tcp is not None
+        }
 
     # --- lifecycle ------------------------------------------------------------------------
 
@@ -60,6 +82,7 @@ class Simulator:
         finally:
             stop_recording()
         self.startup_events = tuple(recorded)
+        await self._start_snmp()
 
     async def stop(self) -> None:
         """Close every connection and link, and stop scans and timers. Safe to call twice."""
@@ -67,6 +90,9 @@ class Simulator:
             task.cancel()
         await asyncio.gather(*self._tasks, return_exceptions=True)
         await self._connections.close()
+        if self._snmp is not None:
+            self._snmp.close()
+            self._snmp = None
         for runtime in self._runtimes.values():
             if runtime.timer is not None:
                 runtime.timer.cancel()
@@ -139,6 +165,29 @@ class Simulator:
                 data = {"receipt_id": meta.id, "boundary": receipt.boundary}
                 self.bus.publish(Event(EventType.PRINTER_JOB_COMPLETED, device_id, data))
         self._schedule_tick(runtime)
+
+    # --- Windows print queue status (windows-print-queue spec) ---------------------------
+
+    async def _start_snmp(self) -> None:
+        if self._snmp_port is None or not self._snmp_printers:
+            return
+        try:
+            self._snmp = await serve_udp("127.0.0.1", self._snmp_port, self._answer_snmp)
+        except OSError:
+            # The devices keep running: only the queues' status display is lost.
+            logger.error("%s; to fix it, %s", snmp.PORT_IN_USE, snmp.STOP_SNMP_SERVICE)
+
+    def _answer_snmp(self, packet: bytes) -> bytes | None:
+        statuses = {
+            index: snmp.printer_status(printer.state().faults)
+            for index, printer in self._snmp_printers.items()
+        }
+        if (answer := snmp.answer(packet, statuses)) is None:
+            return None
+        data = {"type": answer.type, "oids": list(answer.oids)}
+        for device_id in sorted({self._snmp_printers[index].device_id for index in answer.indexes}):
+            self.bus.publish(Event(EventType.SNMP_QUERY_ANSWERED, device_id, data))
+        return answer.reply
 
     def _schedule_tick(self, runtime: DeviceRuntime) -> None:
         """Call the device's `tick` at its next deadline (idle-timeout receipts, scale settling)."""

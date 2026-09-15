@@ -1,12 +1,8 @@
-import sys
 import time
 from itertools import pairwise
 
-import pytest
-
 from emupos.scanner.keys import Key, plan_keys
 from emupos.transports.keyboard.keyboard import (
-    KeyboardUnavailableError,
     system_keyboard,
     type_keys,
 )
@@ -51,16 +47,5 @@ async def test_no_keys() -> None:
     assert await type_keys(FakeKeyboard(), (), inter_key_delay_ms=10) == 0
 
 
-def test_windows_keyboard_not_available_yet(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(sys, "platform", "win32")
-
-    with pytest.raises(KeyboardUnavailableError) as caught:
-        system_keyboard()
-
-    assert "mode: serial" in caught.value.fix
-
-
 def test_system_keyboard_opens_nothing() -> None:
-    if sys.platform == "win32":
-        pytest.skip("the Windows injector is not implemented yet")
     assert hasattr(system_keyboard(), "check_ready")

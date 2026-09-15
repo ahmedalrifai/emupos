@@ -1,5 +1,5 @@
-"""Existing serial devices on macOS and Linux (`serial: { port: /dev/ttyUSB0 }`), opened raw with
-the device's framing and exposed as asyncio streams (design D3)."""
+"""Existing serial ports (`serial: { port: /dev/ttyUSB0 }` or `COM5`), opened raw with the device's
+framing and exposed as asyncio streams (design D3). Windows COM ports go through serialx."""
 
 import asyncio
 import os
@@ -12,7 +12,9 @@ from emupos.transports.errors import EndpointUnavailableError
 from emupos.transports.framing import apply_framing
 from emupos.transports.pty import close_fd_streams, fd_streams
 
-if sys.platform != "win32":
+if sys.platform == "win32":
+    import serialx
+else:
     import fcntl
     import termios
     import tty
@@ -40,10 +42,7 @@ async def open_serial_port(path: str, framing: SerialFraming) -> SerialPort:
     Raises EndpointUnavailableError naming the path and the fix when it cannot be opened.
     """
     if sys.platform == "win32":
-        raise EndpointUnavailableError(
-            f"serial port `{path}`: existing COM ports are not supported yet; "
-            "this arrives with Windows serial support"
-        )
+        return await _open_com_port(path, framing)
     try:
         # O_NONBLOCK: otherwise opening a port on macOS waits for carrier detect.
         fd = os.open(path, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
@@ -85,3 +84,37 @@ async def open_serial_port(path: str, framing: SerialFraming) -> SerialPort:
         raise
     reader, writer, read_transport = await fd_streams(fd)
     return SerialPort(reader, writer, path, read_transport)
+
+
+async def _open_com_port(path: str, framing: SerialFraming) -> SerialPort:
+    if sys.platform != "win32":
+        raise EndpointUnavailableError(f"`{path}`: COM ports exist on Windows only")
+    try:
+        reader, writer = await serialx.open_serial_connection(
+            path,
+            baudrate=framing.baud,
+            byte_size=framing.data_bits,
+            parity={
+                "none": serialx.Parity.NONE,
+                "even": serialx.Parity.EVEN,
+                "odd": serialx.Parity.ODD,
+            }[framing.parity],
+            stopbits=framing.stop_bits,
+        )
+    except FileNotFoundError:
+        raise EndpointUnavailableError(
+            f"no serial port named `{path}`; serial devices on Windows need an existing COM port, "
+            "such as one end of a virtual port pair like com0com (see docs/windows-serial.md); "
+            "run `emupos doctor` to check the COM ports"
+        ) from None
+    except PermissionError:
+        raise EndpointUnavailableError(
+            f"serial port `{path}` is in use by another program; close that program or choose another port"
+        ) from None
+    except (OSError, ValueError, serialx.SerialException) as error:
+        raise EndpointUnavailableError(
+            f"cannot open serial port `{path}` at {framing.baud} baud, {framing.data_bits} data bits, "
+            f"{framing.parity} parity, {framing.stop_bits} stop bits: {error}; "
+            "check the port name and that the port supports this framing"
+        ) from None
+    return SerialPort(reader, writer, path, writer.transport)
