@@ -93,6 +93,7 @@ class Simulator:
         if self._snmp is not None:
             self._snmp.close()
             self._snmp = None
+            await asyncio.sleep(0)  # the transport closes its socket on the next iteration
         for runtime in self._runtimes.values():
             if runtime.timer is not None:
                 runtime.timer.cancel()
