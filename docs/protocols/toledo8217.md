@@ -265,4 +265,4 @@ Odoo shows a status reply as 0 and does not tell the POS which bits were set. Od
 ## Limitations
 
 - Only `W`, `E` and `F` are commands. Any other byte gets the bad command reply; the scale cannot be zeroed or tared over the wire.
-- The serial port is created by emupos on macOS and Linux only. Opening an existing serial port (`serial: { port: ... }`, such as one end of a com0com pair on Windows) is not available yet, so the scale cannot run on Windows today.
+- The serial port is created by emupos on macOS and Linux only. On Windows the scale opens an existing COM port (`serial: { port: COM5 }`), one end of a port pair; see [windows-serial.md](../windows-serial.md).

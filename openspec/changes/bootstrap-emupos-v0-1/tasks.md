@@ -31,7 +31,7 @@
 - [x] 4.2 pty transport (macOS/Linux): raw pty pair, slave kept open for reconnects, private link directory, stale link replacement, and link removal on shutdown; wrap as asyncio streams.
 - [x] 4.3 Serial framing observation: poll the host settings on the pty, emit `connection.framing-mismatch` once per distinct framing, and warn without blocking data (macOS: baud, data bits, parity; Linux: baud only).
 - [x] 4.6 Existing serial device paths on macOS/Linux (`serial: { port: /dev/ttyUSB0 }`, tty0tty), opened raw with the profile's framing; and pty link ownership so a second `emupos run` cannot take over or delete a running simulator's link.
-- [ ] 4.4 Existing-port serial transport (Windows COM and any tty path) using serialx (1.1 could not compare backends), with no assumption about which driver provides the port; a missing port fails startup with a message naming com0com and `emupos doctor`.
+- [x] 4.4 Existing-port serial transport (Windows COM and any tty path) using serialx (1.1 could not compare backends), with no assumption about which driver provides the port; a missing port fails startup with a message naming com0com and `emupos doctor`. The missing-port case runs on the Windows CI runner; data through a real COM pair is still unverified (no pair available).
 - [x] 4.5 Connection events, clean shutdown on Ctrl+C that releases ports and links, and a binary transparency test sending all 256 byte values in both directions over TCP and pty.
 
 ## 5. Receipt printer
@@ -70,17 +70,17 @@
 ## 9. Barcode scanner
 
 - [x] 9.1 Scan request handling: validation, one scan at a time per scanner, countdown, delivery event with scan id, and serial-mode delivery (data bytes plus suffix).
-- [ ] 9.2 Windows keyboard injector: `SendInput` with US-layout virtual-key codes and their scan codes (without scan codes browsers report an empty `code`), a Unicode mode (`KEYEVENTF_UNICODE`), inter-key delay and suffix, plus a warning when Windows reports fewer keystrokes accepted than sent.
+- [x] 9.2 Windows keyboard injector: `SendInput` with US-layout virtual-key codes and their scan codes (without scan codes browsers report an empty `code`), a Unicode mode (`KEYEVENTF_UNICODE`), inter-key delay and suffix, plus a warning when Windows reports fewer keystrokes accepted than sent.
 - [x] 9.3 macOS keyboard injector: `CGEventPost` with US-layout key codes and a Unicode mode, and an Accessibility trust check before every scan that fails with the settings path.
 - [x] 9.4 Linux X11 keyboard injector via XTest, with clear failures when not on X11 (pointing to serial mode) or when libXtst is missing.
 - [x] 9.5 Manual verification checklist per OS in `docs/`, since keystroke injection cannot run in CI.
 
 ## 10. Windows print queue
 
-- [ ] 10.1 `emupos setup print-queue`: create the Standard TCP/IP port and `emupos-<device id>` queue with the Generic / Text Only driver via PowerShell; idempotent; clear failures for non-Windows, a missing TCP connection, missing administrator rights and a stopped Print Spooler; install the Generic / Text Only driver when it is missing; give each printer's port its own SNMP index; roll back the port if queue creation fails.
-- [ ] 10.2 `--remove`: delete the queue and port, succeeding when nothing exists and working without the simulator running; the port can stay "in use" (`0x800700aa`) right after the queue is deleted, which a Spooler restart clears.
-- [ ] 10.3 Minimal SNMP v1/v2c GET/GETNEXT responder on 127.0.0.1:161 (Windows only, only when a printer has a TCP connection) answering the objects found in 1.3 (GETNEXT `1.3.6.1.4.1.2699.1.2`, `sysDescr.0`, and hrDeviceStatus, hrPrinterStatus and hrPrinterDetectedErrorState for the port's SNMP index) from printer state, emitting `snmp.query.answered`.
-- [ ] 10.4 Port 161 conflict handling: `emupos run` continues with an error naming the Windows SNMP Service, and doctor reports it according to whether a queue exists.
+- [x] 10.1 `emupos setup print-queue`: create the Standard TCP/IP port and `emupos-<device id>` queue with the Generic / Text Only driver via PowerShell; idempotent; clear failures for non-Windows, a missing TCP connection, missing administrator rights and a stopped Print Spooler; install the Generic / Text Only driver when it is missing; give each printer's port its own SNMP index (the printer's TCP port); roll back the port if queue creation fails.
+- [x] 10.2 `--remove`: delete the queue and port, succeeding when nothing exists and working without the simulator running; the port can stay "in use" (`0x800700aa`) right after the queue is deleted, which a Spooler restart clears.
+- [x] 10.3 Minimal SNMP v1/v2c GET/GETNEXT responder on 127.0.0.1:161 (Windows only, only when a printer has a TCP connection) answering the objects found in 1.3 (GETNEXT `1.3.6.1.4.1.2699.1.2`, `sysDescr.0`, and hrDeviceStatus, hrPrinterStatus and hrPrinterDetectedErrorState for the port's SNMP index) from printer state, emitting `snmp.query.answered`.
+- [x] 10.4 Port 161 conflict handling: `emupos run` continues with an error naming the Windows SNMP Service, and doctor reports it according to whether a queue exists.
 - [ ] 10.5 Verify on Windows that raw jobs printed through the queue arrive unchanged and that faults change the queue status, waiting for the queue to show a fault before sending a test job (a job sent before Windows's first status poll prints regardless); document the one-way limitation, the Generic / Text Only text conversion and the up-to-10-minute status delay in `docs/windows-print-queue.md`.
 
 ## 11. Control API
@@ -100,14 +100,14 @@
 - [x] 12.3 `emupos run`: load configuration or `--demo`, start devices, connections and API, print the banner with every endpoint and link, stream colour-coded events, and shut down cleanly.
 - [x] 12.4 `devices`, `receipt list`, `receipt show` (including `--save`), `scan` (waits for the matching delivery event), `scale set|zero|tare` (parsing `1.25kg` / `1250g`), `fault set|clear` and `drawer close`.
 - [x] 12.5 `barcode weighed` (works without the simulator), `config init|validate|schema`.
-- [ ] 12.6 `emupos doctor` with pass/warn/fail checks and fixes: Python version, ports free, configuration valid, macOS Accessibility, Linux X11/libXtst, Windows COM ports and com0com (a device with `CM_PROB_UNSIGNED_DRIVER` means Secure Boot blocked it), print-queue/SNMP checks and a stopped Print Spooler, naming the process that holds a configured TCP port (for example Logitech G HUB's `lghub_updater.exe` on 9100); `--json` output.
+- [x] 12.6 `emupos doctor` with pass/warn/fail checks and fixes: Python version, ports free, configuration valid, macOS Accessibility, Linux X11/libXtst, Windows COM ports and com0com (a device with `CM_PROB_UNSIGNED_DRIVER` means Secure Boot blocked it), print-queue/SNMP checks and a stopped Print Spooler, naming the process that holds a configured TCP port (for example Logitech G HUB's `lghub_updater.exe` on 9100); `--json` output.
 - [x] 12.7 `--version` output and shell completion install.
 - [x] 12.8 End-to-end test: run the demo configuration, print a fixture receipt over TCP, open the drawer, set a fault and read status bytes, and fetch the receipt through the CLI.
 
 ## 13. Documentation
 
 - [x] 13.1 `README.md`: what emupos is, the two sides (a POS talks to emupos only through real device protocols; the CLI, and optionally the API for automated tests, replace the physical actions on hardware, with a "real hardware → emupos command" table), install methods (`uv tool install`, `uvx`, `pipx`, `pip`), a five-minute quickstart per OS, and the hard limits table (virtual serial on Windows, ports not listed in enumeration, USB not emulated, Wayland, macOS Accessibility, one-way print queue, approximate glyphs).
-- [ ] 13.2 Setup guides: `docs/windows-serial.md` (com0com 3.0.0.0 is blocked with Secure Boot on; options: Secure Boot off, a signed virtual serial port driver, or real serial hardware), `docs/macos-accessibility.md`, `docs/linux-x11.md`, `docs/windows-print-queue.md`.
+- [x] 13.2 Setup guides: `docs/windows-serial.md` (com0com 3.0.0.0 is blocked with Secure Boot on; options: Secure Boot off, a signed virtual serial port driver, or real serial hardware), `docs/macos-accessibility.md`, `docs/linux-x11.md`, `docs/windows-print-queue.md`, and `docs/windows-keyboard.md` for the Windows privilege and `--unicode` statements.
 - [x] 13.3 Protocol notes in `docs/protocols/` for ESC/POS status bits and Toledo 8217, citing sources.
 - [x] 13.4 `docs/configuration.md`: human-readable reference for every `emupos.yaml` key and the device profile format, with a complete example per device type and a pointer to `emupos config schema` for editor autocomplete.
 - [x] 13.5 `docs/automation.md`: using the control API from automated tests (inject a fault, set a weight, trigger a scan, fetch the latest receipt), with `curl`, Node and Python examples and a GitHub Actions workflow that starts `emupos run` in the background and waits for `/api/v1/health`; restates that POS code never uses the API.
