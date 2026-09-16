@@ -1,7 +1,6 @@
 """The operating system's keyboard, as seen by a keyboard-wedge scan (design D10).
 
-One implementation per OS: macos.py (Quartz), x11.py (XTest). The Windows injector (SendInput)
-follows the same `Keyboard` protocol once the Windows spike has settled its key events.
+One implementation per OS: macos.py (Quartz), windows.py (SendInput), x11.py (XTest).
 """
 
 import asyncio
@@ -44,11 +43,9 @@ def system_keyboard() -> Keyboard:
 
         return MacKeyboard()
     if sys.platform == "win32":
-        raise KeyboardUnavailableError(
-            "keyboard-mode scans are not available on Windows yet",
-            "use `mode: serial` for this scanner, with one end of a com0com port pair "
-            "(see docs/windows-serial.md)",
-        )
+        from emupos.transports.keyboard.windows import WindowsKeyboard
+
+        return WindowsKeyboard()
     from emupos.transports.keyboard.x11 import X11Keyboard
 
     return X11Keyboard()

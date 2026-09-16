@@ -1,4 +1,10 @@
-## ADDED Requirements
+# Barcode Scanner
+
+## Purpose
+
+Delivering scans as keyboard-wedge keystrokes or serial data, with suffix and timing options.
+
+## Requirements
 
 ### Requirement: Scanner modes
 
@@ -109,7 +115,7 @@ In keyboard mode with `unicode` false, each character SHALL be typed as the phys
 
 ### Requirement: Exact-character typing
 
-In keyboard mode with `unicode` true, the simulator SHALL type each character of `data` exactly, independent of the active keyboard layout. The suffix SHALL still be typed as its key.
+In keyboard mode with `unicode` true, the simulator SHALL type each character of `data` exactly, independent of the active keyboard layout. The suffix SHALL still be typed as its key. Characters typed this way carry no physical key, so an application that reads the key position (for example `KeyboardEvent.code` in a browser) does not see the keys a scanner would press; the documentation SHALL state this.
 
 #### Scenario: Arabic characters typed exactly
 
@@ -180,7 +186,7 @@ On Linux, keyboard mode SHALL type through X11 only. Before accepting a keyboard
 
 ### Requirement: Windows privilege limitation
 
-Windows discards keystrokes injected into a window running at a higher privilege level than the sending process, and does not always report that it did so. The Windows documentation SHALL state that keyboard-mode scans do not reach such a window, that the simulator and the POS MUST run at the same privilege level, and that the simulator is not able to detect every discarded scan. When Windows reports that fewer keystrokes were accepted than were sent, the simulator SHALL print a warning in the `emupos run` output naming this limitation and SHALL NOT publish `scanner.scan.delivered` for that scan.
+Windows discards keystrokes injected into a window running at a higher privilege level than the sending process, and still reports those keystrokes as accepted. The Windows documentation SHALL state that keyboard-mode scans do not reach such a window, that the simulator and the POS MUST run at the same privilege level, and that the simulator is not able to detect such discarded scans. When Windows reports that fewer keystrokes were accepted than were sent, the simulator SHALL print a warning in the `emupos run` output naming this limitation and SHALL NOT publish `scanner.scan.delivered` for that scan.
 
 #### Scenario: Documented limitation
 

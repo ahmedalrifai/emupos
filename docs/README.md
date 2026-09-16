@@ -16,8 +16,9 @@ New to emupos? Start with the [main README](../README.md): what emupos is, its t
 |---|---|
 | [macos-accessibility.md](macos-accessibility.md) | Allowing keyboard-mode scans on macOS (the Accessibility permission). |
 | [linux-x11.md](linux-x11.md) | Keyboard-mode scans on Linux: X11, libXtst, Wayland and headless machines. |
-| `windows-serial.md` | Serial devices on Windows with com0com. Coming with Windows support. |
-| `windows-print-queue.md` | Printing through a Windows print queue, and its one-way limit. Coming with Windows support. |
+| [windows-keyboard.md](windows-keyboard.md) | Keyboard-mode scans on Windows: focus, privilege levels, layouts and `--unicode`. |
+| [windows-serial.md](windows-serial.md) | Serial devices on Windows: COM port pairs, and com0com with Secure Boot. |
+| [windows-print-queue.md](windows-print-queue.md) | Printing through a Windows print queue, queue status, and its one-way limit. |
 
 ## Protocols
 

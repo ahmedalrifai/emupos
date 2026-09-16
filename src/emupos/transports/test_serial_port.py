@@ -10,9 +10,7 @@ from emupos.config import SerialFraming
 from emupos.transports.errors import EndpointUnavailableError
 from emupos.transports.serial_port import SerialPort, open_serial_port
 
-pytestmark = pytest.mark.skipif(
-    sys.platform == "win32", reason="existing COM ports are not supported yet"
-)
+posix_only = pytest.mark.skipif(sys.platform == "win32", reason="POSIX device paths")
 
 TIMEOUT = 2
 ALL_BYTES = bytes(range(256))
@@ -24,8 +22,8 @@ type Device = tuple[SerialPort, int]
 @pytest.fixture
 async def device() -> AsyncIterator[Device]:
     """An "existing device": the slave end of a pty, with the test on the master end."""
-    if sys.platform == "win32":  # skipped there; lets type checkers see os.openpty
-        raise NotImplementedError
+    if sys.platform == "win32":  # also lets type checkers see os.openpty
+        pytest.skip("a pty stands in for the device on macOS and Linux")
     master, slave = os.openpty()
     try:
         port = await open_serial_port(os.ttyname(slave), TOLEDO)
@@ -89,13 +87,26 @@ async def test_close_ends_the_streams(device: Device) -> None:
     assert await asyncio.wait_for(port.reader.read(), TIMEOUT) == b""
 
 
+@posix_only
 async def test_missing_path_names_the_path(tmp_path: Path) -> None:
     missing = str(tmp_path / "ttyUSB9")
     with pytest.raises(EndpointUnavailableError, match=r"ttyUSB9.*check the device path"):
         await open_serial_port(missing, TOLEDO)
 
 
+@posix_only
 async def test_regular_file_is_not_a_serial_device(tmp_path: Path) -> None:
     (tmp_path / "notes").write_text("")
     with pytest.raises(EndpointUnavailableError, match="not a serial device"):
         await open_serial_port(str(tmp_path / "notes"), TOLEDO)
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="COM ports exist on Windows only")
+async def test_missing_com_port_names_the_fix() -> None:
+    with pytest.raises(EndpointUnavailableError) as caught:
+        await open_serial_port("COM99", TOLEDO)
+
+    message = str(caught.value)
+    assert "`COM99`" in message
+    assert "com0com" in message
+    assert "emupos doctor" in message

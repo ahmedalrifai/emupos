@@ -113,7 +113,7 @@ Exactly one of `pty` or `port`:
 |---|---|
 | `pty: true` | **macOS and Linux.** emupos creates the serial port itself and publishes it as a link, by default `$TMPDIR/emupos/<device id>` (or `/tmp/emupos/<device id>`). Point your POS at that path. Not available on Windows. |
 | `link` | Only with `pty: true`: the link name, if you want something other than the device id. Links must be unique and must not end in `.pid`. A link belongs to the running `emupos run` that published it; another simulator using the same name refuses to start. |
-| `port` | An existing serial device path on macOS or Linux, such as `/dev/ttyUSB0` or one end of a `tty0tty` pair. On Linux your user needs access to it (usually the `dialout` group). COM ports on Windows (one end of a com0com virtual pair) are not supported yet. |
+| `port` | An existing serial port: a device path on macOS or Linux, such as `/dev/ttyUSB0` or one end of a `tty0tty` pair, or a COM port name on Windows, such as `COM5` ([windows-serial.md](windows-serial.md)). On Linux your user needs access to it (usually the `dialout` group). |
 
 Serial framing (baud rate, data bits, parity, stop bits) comes from the device profile. emupos warns when your POS opens the port with different settings, where the operating system lets it see them.
 

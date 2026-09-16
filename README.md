@@ -202,7 +202,7 @@ The protocol is described in [docs/protocols/toledo8217.md](docs/protocols/toled
 emupos scan 5901234123457
 ```
 
-During the 3-second countdown, click the window that should receive the scan: emupos types `5901234123457` and Enter there, like a USB scanner. If the terminal you ran the command in still has focus when the countdown ends, emupos cancels the scan instead of typing it into your shell. This needs the Accessibility permission on macOS ([guide](docs/macos-accessibility.md)) and an X11 session on Linux ([guide](docs/linux-x11.md)). It is not available on Windows yet.
+During the 3-second countdown, click the window that should receive the scan: emupos types `5901234123457` and Enter there, like a USB scanner. If the terminal you ran the command in still has focus when the countdown ends, emupos cancels the scan instead of typing it into your shell. This needs the Accessibility permission on macOS ([guide](docs/macos-accessibility.md)) and an X11 session on Linux ([guide](docs/linux-x11.md)). On Windows emupos cannot tell whether the terminal still has focus, so make sure you click the target window in time ([guide](docs/windows-keyboard.md)).
 
 ### 8. Stop
 
@@ -240,9 +240,9 @@ This holds as long as development and production use the same kind of connection
 ### Windows
 
 - **The receipt printer and cash drawer work over TCP**, including status replies and faults.
-- **Serial devices are not available yet.** emupos cannot create serial ports on Windows by itself: a serial device there needs a virtual COM port pair from the com0com driver ([docs/windows-serial.md](docs/windows-serial.md)), and emupos cannot open COM ports yet. This means the scale and serial scanners do not run on Windows today; the demo leaves the scale out.
-- **Keyboard-mode scanning is not available yet**: scans are refused with a message.
-- **`emupos setup print-queue`** (a Windows print queue pointed at the simulated printer) is not available yet. Point your POS at the printer's TCP port directly.
+- **Serial devices open existing COM ports.** emupos cannot create serial ports on Windows: a serial device uses `serial: { port: COM5 }`, one end of a COM port pair, and the POS opens the other end. The free com0com driver is blocked on Windows 11 while Secure Boot is on; [docs/windows-serial.md](docs/windows-serial.md) lists the options. The demo leaves the scale out.
+- **Keyboard-mode scanning** types with `SendInput`. emupos and the POS must run at the same privilege level: a POS started as administrator does not receive scans from emupos running as a normal user, and emupos cannot detect that ([docs/windows-keyboard.md](docs/windows-keyboard.md)).
+- **`emupos setup print-queue`** creates a Windows print queue that sends raw jobs to a simulated printer, and the queue shows the printer's faults, such as out of paper ([docs/windows-print-queue.md](docs/windows-print-queue.md)).
 
 `emupos doctor` checks your machine and `./emupos.yaml`, and prints a fix for every problem it finds.
 
@@ -252,12 +252,13 @@ Some things cannot be simulated in software, or not on every operating system:
 
 | Limit | What it means for you |
 |---|---|
-| Virtual serial ports on Windows need com0com | Windows has no built-in virtual serial port pairs, so serial devices there need the third-party com0com driver. emupos cannot open COM ports yet (see [Windows](#windows)). |
+| Virtual serial ports on Windows need a driver | Windows has no built-in virtual serial port pairs, so serial devices there need a port pair driver such as com0com, which Secure Boot blocks on current Windows 11, or two USB serial adapters (see [docs/windows-serial.md](docs/windows-serial.md)). |
 | Simulator-created serial ports are not listed | The ports emupos creates on macOS and Linux do not appear in serial port lists or pickers, including the browser's Web Serial API. Open them by path. A browser POS that uses Web Serial cannot reach them. |
 | USB devices are not emulated | USB printer-class devices and HID POS scanners cannot be emulated in software. emupos offers the same devices over TCP, serial and keyboard input. |
 | No keyboard scanning on Wayland | Wayland does not let one program type into another's windows. Use a serial scanner, or an X11 session. |
 | macOS needs the Accessibility permission for keyboard scans | Without it macOS silently drops the keystrokes, so emupos refuses the scan and tells you which app to allow. |
-| Windows print queues are one-way | A POS that prints through a Windows print queue never receives status replies such as paper out. Test status over TCP. (`emupos setup print-queue` is not available yet.) |
+| Windows print queues are one-way | A POS that prints through a Windows print queue never receives status replies such as paper out. Test status over TCP. Windows also takes up to 10 minutes to show a new fault on the queue. |
+| Windows scans into elevated windows are lost | Windows drops keystrokes sent to a window running as administrator from a normal-user emupos, and reports them as delivered. Run both at the same privilege level. |
 | Glyph shapes are approximate | Receipt geometry is dot-accurate (paper width, columns, line breaks, images, barcode module sizes), but characters are drawn with open-licensed bitmap fonts, not the printer's own. Only code page PC437 has glyphs; other code pages print placeholders, while the text dump still shows the characters. |
 | Virtual serial pairs ignore baud rate and parity | Data passes whatever settings your POS chooses, while a real device would misread the bytes. Watch for emupos's framing warnings, which cover what the operating system exposes (macOS: baud rate, data bits, parity; Linux: baud rate only). |
 

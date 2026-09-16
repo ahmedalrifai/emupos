@@ -32,9 +32,12 @@ def free_port() -> int:
 
 
 def config(tmp_path: Path, printer_port: int, api_port: int = 8765) -> LoadedConfig:
-    serial_devices = """
-  - { id: deli, type: scale, profile: toledo8217-15kg, connections: [ { serial: { pty: true } } ] }
-  - { id: lane2, type: scanner, mode: serial, connections: [ { serial: { pty: true } } ] }
+    # Link names carry this process's id: the `run` tests publish links in the default directory,
+    # where an emupos the developer is running would otherwise own `deli` and refuse to start.
+    links = f"test{os.getpid()}"
+    serial_devices = f"""
+  - {{ id: deli, type: scale, profile: toledo8217-15kg, connections: [ {{ serial: {{ pty: true, link: {links}-deli }} }} ] }}
+  - {{ id: lane2, type: scanner, mode: serial, connections: [ {{ serial: {{ pty: true, link: {links}-lane2 }} }} ] }}
 """
     text = f"""
 schema: 1
@@ -130,7 +133,9 @@ async def test_devices_are_listed_with_endpoints_and_state(
     assert devices["front"]["connections"][0]["endpoint"] == f"127.0.0.1:{printer_port(simulator)}"
     if POSIX:
         assert devices["deli"]["state"]["capacity_grams"] == 15000
-        assert devices["deli"]["connections"][0]["link_path"].endswith("links/deli")
+        assert devices["deli"]["connections"][0]["link_path"].endswith(
+            f"links/test{os.getpid()}-deli"
+        )
         assert devices["lane2"]["profile"] is None
 
 

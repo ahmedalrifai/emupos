@@ -78,8 +78,9 @@ print(asyncio.run(type_keys(keyboard, plan_keys("Ab1-", "enter", unicode=False),
 
 ## Windows
 
-Pending the Windows injector (task 9.2). Keyboard-mode scans on Windows are refused until then, pointing to serial mode. When it lands, this section adds at least:
-
-- [ ] Every item of "Every OS" in the browser and in Notepad.
-- [ ] Notepad started with *Run as administrator* while emupos runs as a normal user: the scan does not arrive, `emupos run` prints a warning naming the privilege-level limitation when Windows reports refused keystrokes, and no `scanner.scan.delivered` event is published.
+- [ ] Every item of "Every OS" in the browser (Edge or Chrome) and in Notepad, except the terminal-focus item: Windows does not detect the focused terminal.
+- [ ] Arabic layout: add Arabic (101) in Settings > Time & language > Language & region, switch the target window to it with Win+Space, run the Arabic item above. Digits stay ASCII on Arabic (101).
+- [ ] `emupos scan "كود-42" --unicode` into the browser: the key logger shows the exact characters with an empty `code`.
+- [ ] Notepad started with *Run as administrator* while emupos runs as a normal user: nothing arrives, and `emupos scan` still reports the scan as delivered (Windows reports the keystrokes as accepted).
 - [ ] Both emupos and Notepad as administrator: the scan arrives.
+- [ ] Lock the screen (Win+L) during a `--countdown 10` scan: `emupos run` prints the refused-keystrokes warning and `emupos scan` does not report delivery. Record what happened if Windows accepted the keystrokes anyway.

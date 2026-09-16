@@ -106,7 +106,7 @@ Bytes that an application sends to the queue `emupos-<device id>` as a raw print
 
 ### Requirement: One-way printing limitation
 
-Printing through a Windows print queue SHALL be documented and reported as one-way: a POS printing through the queue SHALL NOT receive any reply from the printer, including DLE EOT and GS r replies and Automatic Status Back. The success output of `emupos setup print-queue` and the output of `emupos doctor` on Windows, when a queue named `emupos-<device id>` exists, SHALL state that status replies are not delivered through a print queue and that status testing requires connecting to the printer's TCP port or serial connection directly.
+Printing through a Windows print queue SHALL be documented and reported as one-way: a POS printing through the queue SHALL NOT receive any reply from the printer, including DLE EOT and GS r replies and Automatic Status Back. The success output of `emupos setup print-queue` and the output of `emupos doctor` on Windows, when a queue named `emupos-<device id>` exists, SHALL state that status replies are not delivered through a print queue and that status testing requires connecting to the printer's TCP port or serial connection directly. The documentation SHALL also state that text printed from ordinary Windows applications through the queue arrives as plain text produced by the Generic / Text Only driver, in which characters outside the driver's code page, such as Arabic, are replaced.
 
 #### Scenario: Status query sent through the queue
 
@@ -153,7 +153,7 @@ On Windows, while `emupos run` is running with at least one printer that has a T
 
 ### Requirement: Queue status reflects printer state
 
-The status that the SNMP responder reports for a printer SHALL make its Windows queue show the printer as ready when no fault is active. While `paper-out`, `cover-open` or `offline` is active, the reported status SHALL put the queue in an error state and SHALL identify the condition as no paper, door open or offline respectively. `paper-near-end` SHALL be reported as a low-paper warning and SHALL NOT put the queue in an error state. A fault change SHALL be reflected in the next response. When several printers have queues, the SNMP settings that `emupos setup print-queue` configures on each queue's port SHALL identify its printer, and the status reported for one printer's queue SHALL NOT depend on the faults of another printer.
+The status that the SNMP responder reports for a printer SHALL make its Windows queue show the printer as ready when no fault is active. While `paper-out`, `cover-open` or `offline` is active, the reported status SHALL put the queue in an error state and SHALL identify the condition as no paper, door open or offline respectively. `paper-near-end` SHALL be reported as a low-paper warning and SHALL NOT put the queue in an error state. A fault change SHALL be reflected in the next response. The documentation SHALL state that Windows asks for the status of a printer without faults only about every 10 minutes, so a new fault can take that long to appear in Windows. When several printers have queues, the SNMP settings that `emupos setup print-queue` configures on each queue's port SHALL identify its printer, and the status reported for one printer's queue SHALL NOT depend on the faults of another printer.
 
 #### Scenario: Ready with no faults
 

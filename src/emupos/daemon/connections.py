@@ -96,7 +96,7 @@ class Connections:
         self._spawn(watch_framing(port.slave_fd, framing, report))
 
     async def _open_serial_port(self, runtime: DeviceRuntime, path: str) -> None:
-        # Existing device paths on macOS/Linux; Windows COM ports wait for the serial spike (task 4.4).
+        # A device path on macOS/Linux, or a COM port name on Windows.
         port = await open_serial_port(path, self._framing(runtime))
         self._ports.append(port)
         runtime.endpoints.append(Endpoint("serial", port.path))
