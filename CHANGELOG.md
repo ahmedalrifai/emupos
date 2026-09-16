@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/ahmedalrifai/emupos/compare/v0.1.2...v0.2.0) (2026-09-16)
+
+
+### Features
+
+* **windows:** serial ports, keyboard scans and print queues ([#14](https://github.com/ahmedalrifai/emupos/issues/14)) ([40de23e](https://github.com/ahmedalrifai/emupos/commit/40de23e31eb30a9d9678e6f34f40219d21a0808b))
+
 ## [0.1.2](https://github.com/ahmedalrifai/emupos/compare/v0.1.1...v0.1.2) (2026-09-14)
 
 
