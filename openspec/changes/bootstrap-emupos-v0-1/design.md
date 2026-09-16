@@ -69,7 +69,7 @@ Device code receives an `asyncio.StreamReader` and `StreamWriter` and never know
 |---|---|
 | TCP | `asyncio.start_server` |
 | pty (macOS/Linux) | `os.openpty()` in raw mode, wrapped via `loop.connect_read_pipe` / `connect_write_pipe` (verified on macOS) |
-| COM port (Windows) | serialx's asyncio support, or pyserial in a worker thread bridged to streams as a fallback (not yet compared: com0com could not load in the spike) |
+| COM port (Windows) | serialx's asyncio support. Compared with pyserial in a worker thread over a com0com pair (Secure Boot off, 2026-09-16): both ran 100 open/send/close cycles without a failure, so serialx wins on being asyncio-native. Reads arrive about 15 ms after the bytes, because serialx waits for a gap in the incoming data |
 
 The simulator keeps the pty's slave end open so a POS can disconnect and reconnect, and publishes a stable symlink (for example `$TMPDIR/emupos/deli`) so POS configuration survives restarts.
 
@@ -270,7 +270,7 @@ Output formats:
 - **[Another program holds a default TCP port, such as Logitech G HUB's updater on 9100]** → `emupos doctor` names the process; the user picks another port in `emupos.yaml`.
 - **[Print-queue path cannot report status to the POS]** → Documented as a Windows limitation; raw TCP and serial remain available for status testing.
 - **[Glyph shapes differ from printer ROM fonts]** → The promise is dot-accurate geometry, not identical glyphs; golden tests pin geometry.
-- **[serialx has a single maintainer; pyserial has had no release since 2020]** → The COM transport is one small file with a pyserial-in-thread fallback.
+- **[serialx has a single maintainer; pyserial has had no release since 2020]** → The COM transport is one small file, so swapping it for pyserial in a thread stays a contained change; the comparison run shows pyserial handles the same cycles.
 - **[UDP 161 already in use by the Windows SNMP service]** → `emupos doctor` reports the conflict and the fix.
 - **[Pure-Python rendering may be slow on large raster jobs]** → A benchmark fixture in CI; optimise only if a real job is measurably slow.
 
@@ -280,7 +280,7 @@ Not applicable: this is the first release. A broken release is yanked on PyPI an
 
 ## Open Questions
 
-- Is serialx or pyserial in a worker thread the reliable Windows COM backend? Spike 1.1 could not compare them because com0com 3.0.0.0 does not load with Secure Boot on; the comparison needs another COM pair (a signed virtual serial port driver, Secure Boot off, or two USB serial adapters with a null-modem cable).
+- ~~Is serialx or pyserial in a worker thread the reliable Windows COM backend?~~ Answered on 2026-09-16 with a com0com pair and Secure Boot off: neither failed a cycle, so serialx stays. With com0com's defaults, a write while the other end is closed blocks (serialx 5 s, pyserial 2 s), which `EmuOverrun=yes` on the pair avoids; the docs say so.
 - Do injected keystrokes produce the same `KeyboardEvent.code` values as a real USB scanner in Electron, WPF and Java apps? Spike 1.2 confirmed US-keyboard `code`, `key` and keyCode values in Chromium browsers on Windows and macOS, without a real scanner to compare; the Linux X11 run is still to do.
 - Which open-licensed bitmap fonts best approximate Font A (12×24) and Font B (9×17)? Terminus (OFL) offers 12×24.
 - Xprinter's Arabic code-page numbers are unconfirmed; the profile ships with them marked unverified until checked against a printer self-test page.
