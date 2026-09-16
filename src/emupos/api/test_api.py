@@ -133,7 +133,9 @@ async def test_devices_are_listed_with_endpoints_and_state(
     assert devices["front"]["connections"][0]["endpoint"] == f"127.0.0.1:{printer_port(simulator)}"
     if POSIX:
         assert devices["deli"]["state"]["capacity_grams"] == 15000
-        assert devices["deli"]["connections"][0]["link_path"].endswith(f"links/test{os.getpid()}-deli")
+        assert devices["deli"]["connections"][0]["link_path"].endswith(
+            f"links/test{os.getpid()}-deli"
+        )
         assert devices["lane2"]["profile"] is None
 
 
