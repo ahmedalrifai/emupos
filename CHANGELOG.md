@@ -5,7 +5,18 @@
 
 ### Features
 
-* **windows:** serial ports, keyboard scans and print queues ([#14](https://github.com/ahmedalrifai/emupos/issues/14)) ([40de23e](https://github.com/ahmedalrifai/emupos/commit/40de23e31eb30a9d9678e6f34f40219d21a0808b))
+Windows support, all from [#14](https://github.com/ahmedalrifai/emupos/pull/14) ([40de23e](https://github.com/ahmedalrifai/emupos/commit/40de23e31eb30a9d9678e6f34f40219d21a0808b)):
+
+* **windows:** open existing COM ports through serialx (`serial: { port: COM5 }`); a missing port stops startup with a message naming the port, the device, com0com and `emupos doctor`
+* **windows:** keyboard-mode scans type with `SendInput`, carrying US virtual-key codes and their scan codes, or exact characters with `--unicode`
+* **windows:** `emupos setup print-queue` creates and removes a Standard TCP/IP port and an `emupos-<device id>` queue on the Generic / Text Only driver, and `--remove` works with the simulator stopped
+* **windows:** `emupos run` answers the print queue's SNMP status polls on `127.0.0.1:161`, so Windows shows paper out, door open and offline; it keeps every device running when the port is taken
+* **windows:** `emupos doctor` checks COM ports and com0com (including a driver blocked by Secure Boot), the Print Spooler and existing queues, UDP port 161, and names the program holding a busy TCP port
+
+
+### Documentation
+
+* setup guides for Windows: [serial devices](docs/windows-serial.md), [keyboard scans](docs/windows-keyboard.md) and [print queues](docs/windows-print-queue.md), with the one-way limitation of a print queue and its status delay
 
 ## [0.1.2](https://github.com/ahmedalrifai/emupos/compare/v0.1.1...v0.1.2) (2026-09-14)
 
