@@ -18,13 +18,16 @@ class FakeKeyboard:
     def __init__(self, refuse: tuple[Key, ...] = ()) -> None:
         self.refuse = refuse
         self.presses: list[tuple[float, Key]] = []
-        self.calls: list[object] = []  # ("start", keys), each key, "end"
+        self.calls: list[object] = []  # ("start", keys), ("prepare", key), key, ..., "end"
 
     def check_ready(self) -> None:
         pass
 
     def start_scan(self, keys: Sequence[Key]) -> None:
         self.calls.append(("start", tuple(keys)))
+
+    async def prepare_key(self, key: Key) -> None:
+        self.calls.append(("prepare", key))
 
     def press(self, key: Key) -> bool:
         self.presses.append((time.monotonic(), key))
@@ -56,13 +59,17 @@ async def test_counts_only_accepted_keys() -> None:
     assert keyboard.calls[-1] == "end"
 
 
-async def test_scan_steps_come_before_the_first_key_and_after_the_last() -> None:
+async def test_scan_steps_wrap_the_keys_and_each_key_is_prepared() -> None:
     keyboard = FakeKeyboard()
     keys = plan_keys("12", "enter", unicode=True)
 
     await type_keys(keyboard, keys, inter_key_delay_ms=0)
 
-    assert keyboard.calls == [("start", keys), *keys, "end"]
+    assert keyboard.calls == [
+        ("start", keys),
+        *[call for key in keys for call in (("prepare", key), key)],
+        "end",
+    ]
 
 
 async def test_scan_ends_when_typing_is_cancelled() -> None:
@@ -75,7 +82,7 @@ async def test_scan_ends_when_typing_is_cancelled() -> None:
     with pytest.raises(asyncio.CancelledError):
         await typing
 
-    assert keyboard.calls == [("start", keys), keys[0], "end"]
+    assert keyboard.calls == [("start", keys), ("prepare", keys[0]), keys[0], "end"]
 
 
 async def test_no_keys() -> None:

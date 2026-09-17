@@ -32,6 +32,10 @@ class Keyboard(Protocol):
         """Get ready to type one scan's `keys`. Called before its first key."""
         ...
 
+    async def prepare_key(self, key: Key) -> None:
+        """Wait until `key` can be pressed without changing what earlier keys type."""
+        ...
+
     def press(self, key: Key) -> bool:
         """Press and release one key (with Shift when the key says so).
 
@@ -73,6 +77,7 @@ async def type_keys(keyboard: Keyboard, keys: Sequence[Key], inter_key_delay_ms:
             # A timer may fire up to the clock resolution early (about 16 ms on Windows): re-check.
             while (remaining := next_start - loop.time()) > 0:
                 await asyncio.sleep(remaining)
+            await keyboard.prepare_key(key)
             accepted += keyboard.press(key)
             # Counted from the end of the press.
             next_start = loop.time() + inter_key_delay_ms / 1000

@@ -56,8 +56,10 @@ Caps Lock does not change `--unicode` text: emupos turns it off for the scan and
 
 ### Limits
 
-- **Different characters per scan.** Each different character the layout lacks keeps its own key code while emupos runs, so an application that is slow to handle the keys still reads the right characters. An X server has only a few unused key codes (19 on Xvfb). A scan with more different missing characters than that reuses the key code of the least recently typed one. An application that has not yet handled that earlier keystroke then reads the new character. For example, 28 different Arabic letters while a US layout is active can hit this; the same scan under an Arabic layout cannot.
-- **Stopping emupos.** emupos clears its key codes when it stops with Ctrl+C or SIGTERM. A killed emupos (`kill -9`, a crash) leaves them mapped. Run `setxkbmap` with your usual layout (for example `setxkbmap us`), or log in again, to get them back.
+- **Different characters per scan.** Each different character the layout lacks keeps its own key code while emupos runs, so an application that is slow to handle the keys still reads the right characters. An X server has only a few unused key codes (19 on Xvfb), so a scan with more different missing characters must reuse some. For example, 28 different Arabic letters while a US layout is active; the same scan under an Arabic layout needs none.
+
+  Before reusing a key code, emupos waits until the focused application has read the keyboard map again. It sees this through the X server's RECORD extension, which Xorg and Xvfb enable by default. Without RECORD, or without a focused application, it waits until the key code's previous character was typed 2 seconds ago. A scan waits 2 seconds at most in total, so only an application more than 2 seconds behind can still read a wrong character. This was tested with a local X server; remote displays (`ssh -X`) were not.
+- **Stopping emupos.** emupos clears its key codes when it stops with Ctrl+C or SIGTERM. A killed emupos (`kill -9`, a crash) leaves them mapped until the next emupos opens the keyboard, at its first keyboard scan or in `emupos doctor`, and clears them. A key code that another program has changed in the meantime is left alone. To clear them without starting emupos, run `setxkbmap` with your usual layout (for example `setxkbmap us`).
 
 ## Headless machines
 

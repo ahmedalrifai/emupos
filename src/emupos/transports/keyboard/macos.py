@@ -61,6 +61,9 @@ class MacKeyboard:
     def end_scan(self) -> None:
         pass
 
+    async def prepare_key(self, key: Key) -> None:
+        pass
+
     def press(self, key: Key) -> bool:
         if sys.platform != "darwin":
             return False

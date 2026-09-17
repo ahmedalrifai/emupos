@@ -57,6 +57,8 @@ For every scan: run the command, then click into the target during the 3-second 
 - [ ] `--unicode` into gedit and the browser with the default 10 ms delay and with `inter_key_delay_ms: 0`: every character arrives exactly, in order.
 - [ ] Caps Lock on, `emupos scan abc123 --unicode` into gedit and the browser: exactly `abc123`, and Caps Lock is still on afterwards.
 - [ ] Arabic group active, `emupos scan "كود-42" --unicode` into the browser: exactly `كود-42`. The key logger's `code` values are the keys the Arabic layout has these characters on (compare by pressing them yourself), not empty.
+- [ ] US group active, `emupos scan "ابتثجحخدذرزسشصضطظعغفقكلمنهوي" --unicode` into gedit and the browser (28 letters the layout lacks, more than the unused key codes): exactly those letters, in order.
+- [ ] `emupos scan "كود-42" --unicode`, then stop `emupos run` with `kill -9`: `xmodmap -pke | grep -c '= *$'` is lower than before. Start `emupos run` again and scan once: the count is back.
 - [ ] Wayland session: `emupos scan 123` is refused and the fix mentions `mode: serial`.
 - [ ] `env -u DISPLAY emupos run`: scans are refused and the fix mentions `mode: serial`.
 - [ ] Without libXtst (for example a container without `libxtst6`): scans are refused and the fix names libXtst.

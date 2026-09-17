@@ -63,3 +63,27 @@ Run these in Xvfb with `xev -root -event keyboard` as the app. To pause the app,
 - [x] 4.9 Add these Linux checks, which need a desktop, to `docs/keyboard-scanning-checklist.md`:
   - `--unicode` of `abc123` with Caps Lock on, into gedit and the browser;
   - the key logger's `code` values for `--unicode` of `كود-42` with the Arabic layout active (expected: the Arabic layout's key positions).
+
+## 5. Waiting before a reuse, and cleanup after a kill
+
+- [x] 5.1 Add `async prepare_key(key)` to the `Keyboard` protocol. `type_keys` awaits it before each key, after the inter-key delay. Add empty versions to `MacKeyboard` and `WindowsKeyboard`, a recording one to `FakeKeyboard`, and update `test_keyboard.py` (design D4).
+- [x] 5.2 Add `KeymapWatch`, which records emupos's keymap changes and other clients' keymap reads through X RECORD on a second connection, started before the first spare key code is bound (design D2).
+- [x] 5.3 In `X11Keyboard.prepare_key`, before a reuse, wait for the app (design D2):
+  - wait until the focused client has read the keymap after emupos's latest change, then `READ_GRACE_S` (20 ms);
+  - without RECORD or a focused client, wait until the reused key code's character was pressed `REUSE_WAIT_S` (2 s) ago;
+  - wait `REUSE_WAIT_S` at most per scan, asynchronously.
+- [x] 5.4 In `check_ready`, intern a uniquely named atom and own its selection with a 1×1 window, then clear the bindings of killed emupos processes (design D6). Keep the root property of that name in step with the bindings, and delete it at exit.
+- [x] 5.5 In `test_x11.py`, test the wait, the per-scan budget, the timed fallback, `KeymapWatch`, and the cleanup after a kill (design D7).
+- [x] 5.6 Update `docs/linux-x11.md` (the wait and its 2-second limit, cleanup after a kill), and add to the checklist: 28 Arabic letters under US into gedit and the browser, and the key code count around a `kill -9`.
+- [x] 5.7 In Xvfb, with `xev` as a focused window, three runs each, all exact:
+  - 28 Arabic letters under `us` at 10 ms and 0 ms with the app running;
+  - the same, with the app resuming 500 ms, 800 ms and 1500 ms after typing starts;
+  - 52 Arabic and Greek letters at 0 ms, and at 10 ms with the app resuming after 1000 ms;
+  - 28 Arabic letters with no focused app (timed wait) and the app resuming after 500 ms.
+
+  With the app paused for the whole scan, exactly the first 9 are wrong after the 2-second budget.
+- [x] 5.8 With real `emupos run` processes, three runs each:
+  - a killed emupos's key codes are free again after the next emupos's first scan;
+  - a running emupos's key codes are left alone, and cleared by a later emupos once it is killed;
+  - a key code rebound to F13 after the kill keeps F13.
+- [x] 5.9 Rerun sections 1 and 4 on the final code; `uv run ruff check`, `uv run ruff format --check`, `uv run pyright` and `uv run pytest` pass.

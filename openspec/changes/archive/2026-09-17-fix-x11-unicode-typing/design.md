@@ -83,18 +83,38 @@ Three X11 behaviours explain these results:
 
 At 0 ms, the app sometimes found no keysym for a key code that had been bound before the key was pressed. The exact cause inside Xlib's keymap refresh was not found. Mapping every spare key code before the first key avoided it in every run.
 
+**Reusing a key code only after the app has read the keymap (D2), with the app as a focused `xev` window, three runs each:**
+
+| Scan (`unicode` true, `us` layout) | Delay | App | Result |
+|---|---|---|---|
+| 28 Arabic letters | 10 ms and 0 ms | running | exact |
+| 28 Arabic letters | 10 ms / 0 ms | resumes 500 ms / 800 ms after typing starts | exact |
+| 28 Arabic letters | 10 ms | resumes 1500 ms after typing starts | exact (typed in about 1.6 to 1.8 s) |
+| 52 Arabic and Greek letters | 0 ms / 10 ms | running / resumes 1000 ms after typing starts | exact (52 letters at 0 ms in about 0.85 s) |
+| 28 Arabic letters, no focused app (timed wait) | 10 ms | resumes 500 ms after typing starts | exact (typed in about 2.1 s) |
+| 28 Arabic letters | 10 ms | paused for the whole scan | first 9 wrong after the 2 s budget (typed in about 2.4 s) |
+
+A first version reused a key code as soon as the app had read the keymap. At 0 ms, 3 of 6 runs typed the 20th letter as the 1st. The RECORD log showed the app reading the keymap 0.1 ms before emupos changed it again, then never reading it after that change. A change that arrives while Xlib is still handling the keymap reply is dropped, and the app keeps the old character. Waiting 20 ms after the read fixed it: 30 of 30 runs were exact.
+
+**Cleanup after a kill (D6), real `emupos run` processes, three runs each (unused key codes):**
+
+| Scenario | Result |
+|---|---|
+| A scans `كود-42é`, is killed; B starts and scans once | 19 → 15 leaked → 19 after B's first scan and after B stops |
+| A scans, B scans while A runs, A is killed, B stops, C scans | B leaves A's 3 key codes alone; C frees them; 19 at the end |
+| A binds `é`, is killed; another program rebinds that key code to F13; B scans | F13 is kept; all other key codes are free |
+
 ## Goals / Non-Goals
 
 **Goals:**
 
-- `--unicode` on X11 types exact characters at any delay and for an app that handles the keys late. This includes capital letters and text typed with Caps Lock on, within the limit in D2.
+- `--unicode` on X11 types exact characters at any delay and for an app that handles the keys late. This includes capital letters and text typed with Caps Lock on, and applies to an app up to 2 seconds behind when key codes must be reused (D2).
 - Text the active layout can type needs no keymap changes at all.
-- A normally stopped emupos leaves the X keymap and Caps Lock as it found them.
+- A normally stopped emupos leaves the X keymap and Caps Lock as it found them, and the next emupos clears key codes that a killed one left behind.
 - The checklist's Docker recipe runs as written.
 
 **Non-Goals:**
 
-- Cleaning up after a killed emupos (D6), a follow-up.
 - Characters on a key's AltGr level, or in a layout group other than the active one: they use spare key codes.
 - The desktop-only checklist items in #24, and the Linux column of the keyboard-wedge spike.
 - Windows and macOS typing behaviour. Both attach the character to the event itself; they only gain empty scan steps (D4).
@@ -128,17 +148,27 @@ Bind each spare key code as the two-keysym list `(K, K)` with a width of 2, as x
 - On the first such scan of the process, list the key codes that have no keysyms.
 - Keep a map from character to spare key code, ordered from least to most recently used.
 - Before the first key, bind each missing character that is not bound yet, then sync. Stop when no free key code is left.
-- During typing, a missing character that is still unbound takes the key code of the least recently used character. This is the only case in which a key code is rebound while keys are being typed.
+- During typing, a missing character that is still unbound takes the key code of the least recently used character. This is the only case in which a key code is rebound while keys are being typed, and it waits for the app first (below).
 - A repeated character is bound once.
 - At each scan start, if a bound key code no longer holds its character's keysym, the keymap was reloaded (for example by `setxkbmap`, which the Linux checklist runs while `emupos run` keeps running). emupos then forgets its bindings and lists the free key codes again.
 
 **Without libxkbcommon.** If the library is not installed, the layout lookup is skipped and every character uses a spare key code.
 
-With this, a scan can only go wrong if it has more than 19 different characters that the active layout lacks (on Xvfb) *and* the app is far behind. In tests, 28 Arabic letters under `us` with the app paused had their first 9 wrong. Under `ara` the same scan needed no spare key codes.
+**Reusing a key code.** A reused key code is only wrong for an app that has not yet handled the key it typed before. Xlib notes a keymap change when it reads the notification from the socket, and fetches the keymap at the next key lookup. A keymap read after emupos's latest change shows that the app has reached that change. The keys sent before the next change are already queued behind it, and the 20 ms that follow give the app time to look them up before the next notification arrives:
 
-- **Alternative: a minimum delay for Unicode keys.** Rejected: a paused app got wrong characters at 50 ms. No delay is safe for a busy app, and a long one slows every scan.
+- When the first spare key code is needed, emupos starts recording with the X RECORD extension (its client functions are in libXtst) on a second connection. It records emupos's own keymap changes and every client's keymap reads (`GetKeyboardMapping`, and XKB `GetMap`), in the order the server handled them.
+- Before a reuse (the new `prepare_key` step, D4), emupos finds the client that owns the focused window. It waits until that client has read the keymap after emupos's latest change, then 20 ms more for Xlib to finish handling the reply.
+- Without RECORD, or when no client owns the focus (none, pointer-root, the root window), it waits instead until the key code's previous character was pressed 2 seconds ago.
+- A scan waits 2 seconds at most in total. After that, key codes are reused without waiting, so an app that stops handling events for longer can still read a wrong character.
+
+The wait is asynchronous, so the control API stays responsive. Scans that do not reuse a key code never wait.
+
+With this, a scan can only go wrong if it has more than 19 different characters that the active layout lacks (on Xvfb) *and* the app is more than 2 seconds behind. Under `ara`, 28 Arabic letters need no spare key codes at all.
+
+- **Alternative: a minimum delay for Unicode keys.** Rejected: a paused app got wrong characters at 50 ms. No delay is safe for a busy app, and a long one slows every scan. The timed wait above is only the fallback, and only for reuses.
 - **Alternative: restore the mapping after each key,** as xdotool does. Rejected: an app that reads late then finds no keysym at all.
-- **Alternative: wait until the app has handled the key.** Rejected: X gives the sender no such acknowledgement.
+- **Alternative: wait until the app has handled the key.** X gives the sender no such acknowledgement, but the app's keymap read is visible through RECORD, and is enough (see above).
+- **Alternative: watch every client's reads.** Rejected: panels and the window manager also read the keymap after a change, which would end the wait while the focused app is still behind.
 - **Alternative: two characters per spare key code, using Shift for the second.** Tested: this doubles the limit (38 different letters exact with the app paused, 39 not). Rejected: layout keys remove far more of the need, and with this approach 0 ms lost characters in the same way.
 - **Alternative: look characters up with `xkb_utf32_to_keysym` and `XKeysymToKeycode`.** Rejected: it returns one keysym per character, while a layout may use the legacy or the Unicode keysym for it. Converting the keymap's keysyms finds both.
 
@@ -153,11 +183,11 @@ When a scan with Unicode characters starts, read the locked modifiers (`XkbGetSt
 
 ### D4. Start-of-scan and end-of-scan steps on the keyboard
 
-Add `start_scan(keys)` and `end_scan()` to the `Keyboard` protocol:
+Add `start_scan(keys)`, `end_scan()` and `async prepare_key(key)` to the `Keyboard` protocol:
 
-- `type_keys` calls `start_scan` before the first key and `end_scan` in a `finally`, so a cancelled scan also restores Caps Lock.
-- X11 does the layout lookup and mapping (D2) and handles Caps Lock (D3) in these steps.
-- The macOS and Windows keyboards implement both as empty methods.
+- `type_keys` calls `start_scan` before the first key and `end_scan` in a `finally`, so a cancelled scan also restores Caps Lock. It awaits `prepare_key` before each key, after the inter-key delay.
+- X11 does the layout lookup and mapping (D2) and handles Caps Lock (D3) in the scan steps, and waits before reusing a key code (D2) in `prepare_key`.
+- The macOS and Windows keyboards implement all three as empty methods.
 
 - **Alternative: keep the protocol and hide the steps in `press`.** Rejected: `press` sees one key at a time, so it cannot map the whole scan first or know when the scan ends.
 
@@ -167,24 +197,19 @@ Add `start_scan(keys)` and `end_scan()` to the `Keyboard` protocol:
 
 - **Alternative: release in `end_scan`.** Rejected: an app that handles the scan after it finished would lose the characters, the same failure as in D2.
 
-### D6. Cleanup after a killed emupos: tested, left for a follow-up
+### D6. The next emupos clears the key codes of a killed one
 
-**How it works.** A killed emupos (SIGKILL, crash) cannot run D5. A tested design lets the next emupos clean up:
+A killed emupos (SIGKILL, crash) cannot run D5. The next emupos cleans up when it opens the keyboard (`check_ready`, at its first keyboard scan or in `emupos doctor`):
 
-- Each emupos claims an X selection with a unique name (a UUID). The X server drops the claim when the connection closes, even on SIGKILL.
-- Each emupos records `(selection, key code, keysyms)` for its bindings in a property on the root window.
-- The next emupos unbinds any recorded key code whose selection has no owner and whose keysyms are still the recorded ones.
+- Each emupos interns an atom with a unique name (`_EMUPOS_KEYCODES_` and a UUID). It creates a 1×1 unmapped window and makes it the owner of the selection with that name. The X server drops the ownership when the connection closes, even on SIGKILL.
+- In the root window property of that name, it keeps its current bindings as (key code, keysym) pairs, rewritten after each change and deleted at exit.
+- When the next emupos starts, it lists the root properties with that prefix. For each one whose selection has no owner, it unbinds the recorded key codes that still hold the recorded keysym, then deletes the property.
+- A running emupos keeps its selection, so its bindings are left alone. A key code that another program changed after the kill no longer holds the recorded keysym, so it is left alone too.
+- Each process writes only its own property, so no server lock is needed.
 
-**Results with two real `emupos run` processes, A and B:**
+A first prototype used a single shared property, locked the X server for every update, and used the owner's window ID to tell whether it was alive. The window ID failed: a new process can get a dead process's window ID. Unique selection names do not have that problem.
 
-- **Killed A:** B's first scan freed all 7 of A's key codes, and the count was back to 19 after B stopped.
-- **A still running:** B did not touch A's key codes, and both typed exactly.
-- **A killed while B runs:** B freed A's key codes on its next new character.
-- **Key code changed by another program:** a key code that another program had rebound to F13 after A was killed was left alone.
-
-A first version used A's window ID to tell whether A was alive. It failed because a new process can get the dead process's window ID, so the design uses the uniquely named selection.
-
-**Why it is deferred.** It costs about 40 lines of X11 code. The tested version also locks the X server (`XGrabServer`) for each new character to update the shared property. A version with one property per process would avoid that lock. Without the cleanup, `setxkbmap` (or a new login) recovers the key codes, and D5 covers normal stops. With layout keys (D2), far fewer key codes are bound in the first place.
+- **Alternative: leave it to `setxkbmap` or a new login.** Rejected: users would need to know about it, and each crash would take more key codes.
 
 ### D7. Tests
 
@@ -203,6 +228,17 @@ A first version used A's window ID to tell whether A was alive. It failed becaus
   - characters bound again after the keymap was reloaded;
 - **without libxkbcommon:** every character uses a spare key code;
 - **Caps Lock:** unlocked and relocked only for Unicode scans, and only when it was locked;
+- **reusing a key code:**
+  - a reuse waits until the focused app has read the keymap;
+  - no wait while spare key codes last;
+  - a scan waits `REUSE_WAIT_S` at most;
+  - without RECORD or a focused app, the timed wait;
+- **the RECORD watch** (`KeymapWatch`): emupos's changes and other clients' reads are counted, and other requests are ignored;
+- **cleanup after a kill:**
+  - a killed emupos's key codes are cleared;
+  - a running one's are kept;
+  - a key code changed since is left alone;
+  - the process's own bindings are listed until exit;
 - **release:** all bound key codes are released.
 
 `test_keyboard.py` checks that `type_keys` calls `start_scan` before the first key and `end_scan` after the last, including when a key fails and when the task is cancelled.
@@ -211,11 +247,14 @@ CI has no X server, so the Xvfb checks in tasks section 4 are the end-to-end che
 
 ## Risks / Trade-offs
 
-- **More than 19 different characters that the active layout lacks** (on Xvfb) can still produce wrong characters if the app is far behind. → The limit is stated in `docs/linux-x11.md`. It needs, for example, long Arabic text while a US layout is active.
+- **More than 19 different characters that the active layout lacks** (on Xvfb) can still produce wrong characters if the app is more than 2 seconds behind. → The limit is stated in `docs/linux-x11.md`. It needs, for example, long Arabic text while a US layout is active, and an app that freezes during the scan.
+- **RECORD may be disabled, or the focused window may belong to another client than the one that reads the keys** (an XIM input method server, or a window manager that focuses its frame). → emupos then waits the timed fallback or the 2-second budget, and reuses the key code after that. Browsers and GTK apps are to be checked in the desktop checklist.
+- **The 20 ms after an app's keymap read is empirical.** It covers Xlib handling the reply, and the app handling the keys already queued, on a local X server with `xev`. An app with slow handlers that resumes with a long backlog may need more. → The 0 ms and paused checks run three times, and the desktop checklist sends 28 Arabic letters into gedit and a browser. If that check fails, scale the wait with the number of keys pressed since the app's last read. Raising it for every reuse is not an option: 33 reuses × 100 ms would exceed the 2-second budget in the 52-letter case.
+- **One atom and one small unmapped window per emupos process.** X never frees atoms. → Accepted: one per process start.
 - **libxkbcommon may be missing,** as on a minimal server. Then every character uses a spare key code, and the limit applies to all different characters. → `docs/linux-x11.md` names the package (`libxkbcommon0` on Debian and Ubuntu, `libxkbcommon` on Fedora). GTK and Qt desktops already have it.
 - **Characters typed with layout keys look like real key presses.** A capital letter is sent with Shift, and the app sees the key's position. → This matches a real keyboard. The spec and docs state it.
 - **A modifier held by the user during the scan** (Shift, AltGr), or a layout switch in the middle of a scan, can change what layout keys type. → Physical-key typing has the same limitation. Scans take well under a second.
-- **A killed emupos leaves its spare key codes bound.** → `docs/linux-x11.md` says to run `setxkbmap` or log in again. D6 is the tested follow-up.
+- **A killed emupos leaves its spare key codes bound until the next emupos opens the keyboard** (D6). → `docs/linux-x11.md` says so, and names `setxkbmap` for clearing them without emupos.
 - **The 0 ms fix is empirical.** Why Xlib missed the bindings is not known. → Tasks 4.2 and 4.3 repeat the 0 ms checks.
 - **The Caps Lock light goes off during a Unicode scan.** A Caps Lock press during the scan is overwritten when the scan ends. → Accepted: scans take well under a second.
 - **The free key codes are listed once per process.** A key code that another tool, such as xdotool, binds later can be taken over by emupos. → This happens today too, and xdotool reverts its own bindings.
@@ -229,4 +268,4 @@ There is nothing to migrate. To roll back, revert the commit. The behaviour of `
 
 - How many unused key codes do real Xorg desktops (Ubuntu, Fedora) have? This can be recorded during the desktop checklist in #24.
 - What `code` value does a browser report for characters typed with layout keys? This is expected to be the key's position, to be confirmed in the desktop checklist.
-- Should the D6 cleanup come next? That depends on how often emupos is killed in practice.
+- Which client reads the keymap for an app that uses an XIM input method, and does the focused-window rule find it? To be checked on a desktop.

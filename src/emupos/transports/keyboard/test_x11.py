@@ -1,6 +1,7 @@
 """X11 keyboard checks with the environment and library loader replaced; no X server needed."""
 
 import ctypes
+import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
@@ -8,7 +9,7 @@ import pytest
 
 from emupos.scanner.keys import ENTER, LEFT_SHIFT, TAB, US_LAYOUT, PhysicalKey, plan_keys
 from emupos.transports.keyboard import x11
-from emupos.transports.keyboard.keyboard import KeyboardUnavailableError
+from emupos.transports.keyboard.keyboard import KeyboardUnavailableError, type_keys
 
 
 def refusal(
@@ -93,8 +94,10 @@ def test_every_us_key_has_a_keycode() -> None:
 
 # --- typing, with libX11, libXtst and libxkbcommon replaced by fakes ------------------------
 
-SHIFT_L, KP_ADD, ARABIC_SHEEN = 0xFFE1, 0xFFAB, 0x5D4
+SHIFT_L, KP_ADD, ARABIC_SHEEN, F13 = 0xFFE1, 0xFFAB, 0x5D4, 0xFFCA
 SHIFT_KEYCODE = 42 + 8
+ROOT, OWN_WINDOW, OWN_CLIENT, APP_CLIENT = 0x100, 0x400001, 0x400000, 0x200000
+FROM_CLIENT, START_OF_DATA = 1, 4  # XRecordInterceptData categories
 # Two groups, two levels each: group 1 is a US layout, group 2 an Arabic one.
 KEYMAP = {
     10: [ord("1"), ord("!"), ord("1"), ord("!")],
@@ -123,9 +126,62 @@ class FakeX11:
         self.locked = x11.LOCK_MASK if caps else 0
         self.lock_calls: list[tuple[int, int]] = []
         self.mapping_changes = 0
+        self.atoms: dict[str, int] = {}
+        self.properties: dict[int, list[int]] = {}  # of the root window, by atom
+        self.owners: dict[int, int] = {}  # selection atom -> owner window
+
+    def atom(self, name: str) -> int:
+        return self.atoms.setdefault(name, 1000 + len(self.atoms))
+
+    def own_bindings(self) -> list[int] | None:
+        """The root property of the emupos under test."""
+        atom = next(atom for atom, owner in self.owners.items() if owner == OWN_WINDOW)
+        return self.properties.get(atom)
 
     def current_keymap(self, _x11: object, _display: object) -> dict[int, list[int]]:
         return {keycode: list(keysyms) for keycode, keysyms in self.keymap.items()}
+
+    def list_properties(self, _x11: object, _display: object, _window: object) -> list[int]:
+        return list(self.properties)
+
+    def atom_name(self, _x11: object, _display: object, atom: int) -> str:
+        return next(name for name, known in self.atoms.items() if known == atom)
+
+    def read_cardinals(
+        self, _x11: object, _display: object, _window: object, atom: int
+    ) -> list[int]:
+        return self.properties.get(atom, [])
+
+    def XInternAtom(self, _display: int, name: bytes, _only_if_exists: int) -> int:  # noqa: N802
+        return self.atom(name.decode())
+
+    def XDefaultRootWindow(self, _display: int) -> int:  # noqa: N802
+        return ROOT
+
+    def XCreateSimpleWindow(self, *_: object) -> int:  # noqa: N802
+        return OWN_WINDOW
+
+    def XSetSelectionOwner(self, _display: int, atom: int, window: int, _time: int) -> None:  # noqa: N802
+        self.owners[atom] = window
+
+    def XGetSelectionOwner(self, _display: int, atom: int) -> int:  # noqa: N802
+        return self.owners.get(atom, 0)
+
+    def XChangeProperty(  # noqa: N802
+        self,
+        _display: int,
+        _window: int,
+        atom: int,
+        _type: int,
+        _format: int,
+        _mode: int,
+        values: Sequence[int],
+        count: int,
+    ) -> None:
+        self.properties[atom] = list(values[:count])
+
+    def XDeleteProperty(self, _display: int, _window: int, atom: int) -> None:  # noqa: N802
+        self.properties.pop(atom, None)
 
     def XSetErrorHandler(self, _handler: object) -> None:  # noqa: N802
         pass
@@ -168,12 +224,29 @@ class FakeXtst:
         return 1
 
 
+class FakeWatch:
+    """Reports that the app has read the keymap once it was polled `reads_after_polls` times."""
+
+    def __init__(self, reads_after_polls: int | None) -> None:
+        self.reads_after_polls = reads_after_polls
+        self.polls = 0
+
+    def poll(self) -> None:
+        self.polls += 1
+
+    def has_read(self, _client: int, _changes: int) -> bool:
+        return self.reads_after_polls is not None and self.polls >= self.reads_after_polls
+
+
 @dataclass
 class Setup:
     keyboard: x11.X11Keyboard
     x11: FakeX11
     xtst: FakeXtst
     at_exit: list[Callable[[], None]]
+
+    async def type_scan(self, text: str) -> None:
+        await type_keys(self.keyboard, plan_keys(text, "none", unicode=True), 0)
 
     def type(self, text: str, unicode: bool = True) -> list[bool]:
         keys = plan_keys(text, "none", unicode=unicode)
@@ -190,9 +263,30 @@ def ready_keyboard(
     group: int = 0,
     caps: bool = False,
     xkbcommon: bool = True,
+    watch: FakeWatch | None = None,
+    focused: int | None = APP_CLIENT,
+    before: Callable[[FakeX11], None] | None = None,
 ) -> Setup:
     fake_x11, fake_xtst = FakeX11(spare, group, caps), FakeXtst()
     at_exit: list[Callable[[], None]] = []
+
+    def resource_ids(_display: int) -> tuple[int, int]:
+        return OWN_CLIENT, 0x1FFFFF
+
+    def focused_client(*_: object) -> int | None:
+        return focused
+
+    def start_watch(*_: object) -> FakeWatch | None:
+        return watch
+
+    monkeypatch.setattr(x11, "_resource_ids", resource_ids)
+    monkeypatch.setattr(x11, "_focused_client", focused_client)
+    monkeypatch.setattr(x11.KeymapWatch, "start", start_watch)
+    monkeypatch.setattr(x11, "_list_properties", fake_x11.list_properties)
+    monkeypatch.setattr(x11, "_atom_name", fake_x11.atom_name)
+    monkeypatch.setattr(x11, "_read_cardinals", fake_x11.read_cardinals)
+    if before is not None:
+        before(fake_x11)
     monkeypatch.setenv("XDG_SESSION_TYPE", "x11")
     monkeypatch.setenv("DISPLAY", ":0")
     monkeypatch.setattr(x11, "load_libraries", lambda: (fake_x11, fake_xtst))
@@ -350,3 +444,125 @@ def test_exit_clears_the_spare_keycodes(monkeypatch: pytest.MonkeyPatch) -> None
         handler()
 
     assert setup.x11.keymap[200] == setup.x11.keymap[201] == [0] * 4
+
+
+async def test_reused_keycode_waits_until_the_app_has_read_the_keymap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    watch = FakeWatch(reads_after_polls=3)
+    setup = ready_keyboard(monkeypatch, watch=watch)
+
+    await setup.type_scan("éüß")
+
+    assert watch.polls == 3
+    assert setup.xtst.pressed == [201, 200, 201]  # ß takes é's keycode once the app caught up
+
+
+async def test_no_wait_while_spare_keycodes_last(monkeypatch: pytest.MonkeyPatch) -> None:
+    watch = FakeWatch(reads_after_polls=None)
+    setup = ready_keyboard(monkeypatch, watch=watch)
+
+    await setup.type_scan("éüé")
+
+    assert watch.polls == 0
+
+
+async def test_a_scan_waits_reuse_wait_s_at_most(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(x11, "REUSE_WAIT_S", 0.05)
+    setup = ready_keyboard(monkeypatch, watch=FakeWatch(reads_after_polls=None))
+    started = time.monotonic()
+
+    await setup.type_scan("éüßçñ")  # three reuses, and the app never reads the keymap
+
+    assert 0.05 <= time.monotonic() - started < 0.5
+    assert len(setup.xtst.pressed) == 5
+
+
+@pytest.mark.parametrize(
+    ("watch", "focused"), [(None, APP_CLIENT), (FakeWatch(reads_after_polls=1), None)]
+)
+async def test_without_record_or_a_focused_app_reuse_waits_for_time(
+    monkeypatch: pytest.MonkeyPatch, watch: FakeWatch | None, focused: int | None
+) -> None:
+    monkeypatch.setattr(x11, "REUSE_WAIT_S", 0.05)
+    setup = ready_keyboard(monkeypatch, watch=watch, focused=focused)
+    started = time.monotonic()
+
+    await setup.type_scan("éüß")
+
+    assert time.monotonic() - started >= 0.05  # until é was typed REUSE_WAIT_S ago
+    assert setup.xtst.pressed == [201, 200, 201]
+
+
+def test_keymap_watch_counts_reads_after_emupos_changes() -> None:
+    watch = x11.KeymapWatch(OWN_CLIENT, xkb_opcode=135, poll=lambda: None)
+
+    watch.note(OWN_CLIENT, FROM_CLIENT, 100, 0)  # emupos changes the keymap
+    watch.note(APP_CLIENT, FROM_CLIENT, 101, 0)  # the app reads it: GetKeyboardMapping
+    watch.note(OWN_CLIENT, FROM_CLIENT, 100, 0)
+    assert watch.has_read(APP_CLIENT, 1)
+    assert not watch.has_read(APP_CLIENT, 2)
+
+    watch.note(APP_CLIENT, FROM_CLIENT, 135, 8)  # XkbGetMap
+    assert watch.has_read(APP_CLIENT, 2)
+
+
+def test_keymap_watch_ignores_other_requests() -> None:
+    watch = x11.KeymapWatch(OWN_CLIENT, xkb_opcode=135, poll=lambda: None)
+
+    watch.note(APP_CLIENT, FROM_CLIENT, 135, 9)  # another XKB request
+    watch.note(APP_CLIENT, 0, 101, 0)  # not a request
+    watch.note(OWN_CLIENT, FROM_CLIENT, 101, 0)  # emupos's own read
+    watch.note(APP_CLIENT, FROM_CLIENT, 100, 0)  # another client's keymap change
+
+    assert not watch.has_read(APP_CLIENT, 0)
+    assert watch.changes == 0
+    assert not watch.started
+    watch.note(0, START_OF_DATA, 0, 0)
+    assert watch.started
+
+
+def killed_emupos(keysyms: list[int], alive: bool = False) -> Callable[[FakeX11], None]:
+    """Another emupos bound keycode 201 to é; its key code 201 now holds `keysyms`."""
+
+    def set_up(fake: FakeX11) -> None:
+        fake.keymap[201] = keysyms
+        atom = fake.atom(f"{x11.BINDINGS_PREFIX}other")
+        fake.properties[atom] = [201, ord("é")]
+        if alive:
+            fake.owners[atom] = 0x300001
+
+    return set_up
+
+
+def test_keycodes_left_by_a_killed_emupos_are_cleared(monkeypatch: pytest.MonkeyPatch) -> None:
+    setup = ready_keyboard(monkeypatch, before=killed_emupos([ord("é")] * 2 + [0] * 2))
+
+    assert setup.x11.keymap[201] == [0] * 4
+    assert setup.x11.atom(f"{x11.BINDINGS_PREFIX}other") not in setup.x11.properties
+
+
+def test_keycodes_of_a_running_emupos_are_kept(monkeypatch: pytest.MonkeyPatch) -> None:
+    bound = [ord("é")] * 2 + [0] * 2
+    setup = ready_keyboard(monkeypatch, before=killed_emupos(bound, alive=True))
+
+    assert setup.x11.keymap[201] == bound
+    assert setup.x11.atom(f"{x11.BINDINGS_PREFIX}other") in setup.x11.properties
+
+
+def test_keycode_changed_since_the_kill_is_left_alone(monkeypatch: pytest.MonkeyPatch) -> None:
+    setup = ready_keyboard(monkeypatch, before=killed_emupos([F13, 0, F13, 0]))
+
+    assert setup.x11.keymap[201] == [F13, 0, F13, 0]
+    assert setup.x11.atom(f"{x11.BINDINGS_PREFIX}other") not in setup.x11.properties
+
+
+def test_bindings_are_listed_until_exit(monkeypatch: pytest.MonkeyPatch) -> None:
+    setup = ready_keyboard(monkeypatch)
+
+    setup.type("é")
+    assert setup.x11.own_bindings() == [201, ord("é")]
+    for handler in setup.at_exit:
+        handler()
+
+    assert setup.x11.own_bindings() is None

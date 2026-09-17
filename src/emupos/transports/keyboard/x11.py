@@ -6,10 +6,14 @@ Unicode text uses the active layout's own keys where it has the character, and s
 codes bound to the character otherwise, as `xdotool type` does.
 """
 
+import asyncio
 import atexit
 import ctypes
 import os
+import time
+import uuid
 from collections.abc import Callable, Sequence
+from typing import Any
 
 from emupos.scanner.keys import ENTER, LEFT_SHIFT, TAB, US_LAYOUT, Key, UnicodeText
 from emupos.transports.keyboard.keyboard import KeyboardUnavailableError
@@ -46,6 +50,83 @@ KEYCODES: dict[int, int] = {
 XKB_USE_CORE_KBD = 0x0100
 LOCK_MASK = 0x02
 _KEYPAD_KEYSYMS = range(0xFF80, 0xFFBE)  # KP_*: the level they type depends on Num Lock
+
+# Per scan, the longest total wait for the focused app to read the keymap before spare
+# keycodes are reused.
+REUSE_WAIT_S = 2.0
+# After an app reads the keymap: time for it to handle the reply. A keymap change arriving while
+# Xlib handles that reply is dropped, and the app keeps typing the old character (seen at 0 ms).
+READ_GRACE_S = 0.02
+# Root window property of one emupos process: (keycode, keysym) pairs it has bound.
+BINDINGS_PREFIX = "_EMUPOS_KEYCODES_"
+_XA_CARDINAL = 6
+_X_CHANGE_KEYBOARD_MAPPING = 100
+_X_GET_KEYBOARD_MAPPING = 101
+_XKB_GET_MAP = 8
+_RECORD_FROM_CLIENT = 1
+_RECORD_START_OF_DATA = 4
+_RECORD_ALL_CLIENTS = 3
+
+
+class _RecordRange8(ctypes.Structure):
+    _fields_ = (("first", ctypes.c_ubyte), ("last", ctypes.c_ubyte))
+
+
+class _RecordRange16(ctypes.Structure):
+    _fields_ = (("first", ctypes.c_ushort), ("last", ctypes.c_ushort))
+
+
+class _RecordExtRange(ctypes.Structure):
+    _fields_ = (("ext_major", _RecordRange8), ("ext_minor", _RecordRange16))
+
+
+class _RecordRange(ctypes.Structure):
+    """XRecordRange from X11/extensions/record.h."""
+
+    _fields_ = (
+        ("core_requests", _RecordRange8),
+        ("core_replies", _RecordRange8),
+        ("ext_requests", _RecordExtRange),
+        ("ext_replies", _RecordExtRange),
+        ("delivered_events", _RecordRange8),
+        ("device_events", _RecordRange8),
+        ("errors", _RecordRange8),
+        ("client_started", ctypes.c_int),
+        ("client_died", ctypes.c_int),
+    )
+
+
+class _RecordInterceptData(ctypes.Structure):
+    """XRecordInterceptData from X11/extensions/record.h."""
+
+    _fields_ = (
+        ("id_base", ctypes.c_ulong),
+        ("server_time", ctypes.c_ulong),
+        ("client_seq", ctypes.c_ulong),
+        ("category", ctypes.c_int),
+        ("client_swapped", ctypes.c_int),
+        ("data", ctypes.POINTER(ctypes.c_ubyte)),
+        ("data_len", ctypes.c_ulong),
+    )
+
+
+class _DisplayStart(ctypes.Structure):
+    """The first fields of Xlib's Display (`_XPrivDisplay` in Xlib.h; private3 and private4)."""
+
+    _fields_ = (
+        ("ext_data", ctypes.c_void_p),
+        ("private1", ctypes.c_void_p),
+        ("fd", ctypes.c_int),
+        ("private2", ctypes.c_int),
+        ("proto_major_version", ctypes.c_int),
+        ("proto_minor_version", ctypes.c_int),
+        ("vendor", ctypes.c_char_p),
+        ("resource_base", ctypes.c_ulong),
+        ("resource_mask", ctypes.c_ulong),
+    )
+
+
+_RecordCallback = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.POINTER(_RecordInterceptData))
 
 # Xlib's default error handler exits the process; a refused request must not stop emupos.
 _ErrorHandler = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p)
@@ -116,8 +197,42 @@ def load_libraries() -> tuple[ctypes.CDLL, ctypes.CDLL]:
     x11.XFree.argtypes = [ctypes.c_void_p]
     x11.XkbGetState.argtypes = [display, ctypes.c_uint, ctypes.c_void_p]
     x11.XkbLockModifiers.argtypes = [display, ctypes.c_uint, ctypes.c_uint, ctypes.c_uint]
+    xid, c_uint = ctypes.c_ulong, ctypes.c_uint
+    x11.XDefaultRootWindow.argtypes = [display]
+    x11.XDefaultRootWindow.restype = xid
+    x11.XCreateSimpleWindow.argtypes = [display, xid, ctypes.c_int, ctypes.c_int]
+    x11.XCreateSimpleWindow.argtypes += [c_uint, c_uint, c_uint, xid, xid]
+    x11.XCreateSimpleWindow.restype = xid
+    x11.XInternAtom.argtypes = [display, ctypes.c_char_p, ctypes.c_int]
+    x11.XInternAtom.restype = xid
+    x11.XGetAtomName.argtypes = [display, xid]
+    x11.XGetAtomName.restype = ctypes.c_void_p  # freed with XFree
+    x11.XSetSelectionOwner.argtypes = [display, xid, xid, xid]
+    x11.XGetSelectionOwner.argtypes = [display, xid]
+    x11.XGetSelectionOwner.restype = xid
+    x11.XListProperties.argtypes = [display, xid, c_int_p]
+    x11.XListProperties.restype = c_ulong_p
+    x11.XGetWindowProperty.argtypes = [display, xid, xid, ctypes.c_long, ctypes.c_long]
+    x11.XGetWindowProperty.argtypes += [ctypes.c_int, xid, c_ulong_p, c_int_p, c_ulong_p]
+    x11.XGetWindowProperty.argtypes += [c_ulong_p, ctypes.POINTER(ctypes.c_void_p)]
+    x11.XChangeProperty.argtypes = [display, xid, xid, xid, ctypes.c_int, ctypes.c_int]
+    x11.XChangeProperty.argtypes += [ctypes.c_void_p, ctypes.c_int]
+    x11.XDeleteProperty.argtypes = [display, xid, xid]
+    x11.XGetInputFocus.argtypes = [display, c_ulong_p, c_int_p]
+    x11.XQueryExtension.argtypes = [display, ctypes.c_char_p, c_int_p, c_int_p, c_int_p]
     xtst.XTestQueryExtension.argtypes = [display, c_int_p, c_int_p, c_int_p, c_int_p]
     xtst.XTestFakeKeyEvent.argtypes = [display, ctypes.c_uint, ctypes.c_int, ctypes.c_ulong]
+    xtst.XRecordQueryVersion.argtypes = [display, c_int_p, c_int_p]
+    xtst.XRecordAllocRange.restype = ctypes.POINTER(_RecordRange)
+    xtst.XRecordCreateContext.argtypes = [display, ctypes.c_int, c_ulong_p, ctypes.c_int]
+    xtst.XRecordCreateContext.argtypes += [
+        ctypes.POINTER(ctypes.POINTER(_RecordRange)),
+        ctypes.c_int,
+    ]
+    xtst.XRecordCreateContext.restype = xid
+    xtst.XRecordEnableContextAsync.argtypes = [display, xid, _RecordCallback, ctypes.c_void_p]
+    xtst.XRecordProcessReplies.argtypes = [display]
+    xtst.XRecordFreeData.argtypes = [ctypes.POINTER(_RecordInterceptData)]
     return x11, xtst
 
 
@@ -145,6 +260,13 @@ class X11Keyboard:
         self._bound: dict[str, int] = {}  # char -> spare keycode, least recently used first
         self._open_scans = 0
         self._relock_caps = False
+        self._resource_base = self._resource_mask = 0  # this connection's X resource IDs
+        self._bindings_atom = 0  # the root property listing this process's bindings
+        self._pressed_at: dict[str, float] = {}  # char -> when its spare keycode was pressed
+        self._watch: KeymapWatch | None = None
+        self._watch_started = False
+        self._changes = 0  # keymap changes since the watch started
+        self._wait_left = REUSE_WAIT_S  # of this scan
 
     def check_ready(self) -> None:
         check_session()
@@ -168,6 +290,16 @@ class X11Keyboard:
             )
         self._libraries, self._display = (x11, xtst), display
         self._keysym_to_utf32 = load_keysym_to_utf32()
+        self._resource_base, self._resource_mask = _resource_ids(display)
+        # The X server drops this selection when emupos's connection closes, even on SIGKILL:
+        # a later emupos then knows that this process's bindings are left over.
+        # ponytail: one atom per emupos process; X never frees atoms.
+        name = f"{BINDINGS_PREFIX}{uuid.uuid4().hex}"
+        self._bindings_atom = x11.XInternAtom(display, name.encode(), 0)
+        root = x11.XDefaultRootWindow(display)
+        owner = x11.XCreateSimpleWindow(display, root, 0, 0, 1, 1, 0, 0, 0)
+        x11.XSetSelectionOwner(display, self._bindings_atom, owner, 0)
+        _clear_dead_bindings(x11, display, root)
         atexit.register(self._unbind_all)
 
     def start_scan(self, keys: Sequence[Key]) -> None:
@@ -176,6 +308,7 @@ class X11Keyboard:
             return
         x11, display = self._libraries[0], self._display
         self._open_scans += 1
+        self._wait_left = REUSE_WAIT_S
         chars = [key.char for key in keys if isinstance(key, UnicodeText)]
         if not chars:
             return
@@ -188,6 +321,7 @@ class X11Keyboard:
         if any(keymap.get(code, [0])[:1] != [_keysym(char)] for char, code in self._bound.items()):
             self._bound.clear()  # the keymap was reloaded (setxkbmap): the bindings are gone
             self._spare_keycodes = None
+            self._record_bindings(x11, display)
         self._layout_keys = _layout_keys(
             keymap, group, self._keysym_to_utf32, set(self._bound.values())
         )
@@ -210,6 +344,42 @@ class X11Keyboard:
             x11.XFlush(display)
             self._relock_caps = False
 
+    async def prepare_key(self, key: Key) -> None:
+        """Before a spare keycode is reused, wait until the focused app has read the keymap.
+
+        Until then the app may not have handled the key that the keycode typed last, and would
+        read it as the new character. Without X RECORD or a focused app, wait until that key
+        was pressed REUSE_WAIT_S ago instead. A scan waits REUSE_WAIT_S at most in total; after
+        that, keycodes are reused without waiting.
+        """
+        if not self._reuse_needed(key) or self._libraries is None or self._display is None:
+            return
+        x11, display = self._libraries[0], self._display
+        client = _focused_client(x11, display, self._resource_mask)
+        oldest = next(iter(self._bound))
+        started = time.monotonic()
+        try:
+            while time.monotonic() - started < self._wait_left:
+                if self._watch is not None and client is not None:
+                    self._watch.poll()
+                    if self._watch.has_read(client, self._changes):
+                        await asyncio.sleep(READ_GRACE_S)
+                        return
+                elif time.monotonic() - self._pressed_at.get(oldest, 0.0) >= REUSE_WAIT_S:
+                    return
+                await asyncio.sleep(0.005)
+        finally:
+            self._wait_left = max(0.0, self._wait_left - (time.monotonic() - started))
+
+    def _reuse_needed(self, key: Key) -> bool:
+        return (
+            isinstance(key, UnicodeText)
+            and key.char not in self._layout_keys
+            and key.char not in self._bound
+            and self._spare_keycodes == []
+            and bool(self._bound)
+        )
+
     def press(self, key: Key) -> bool:
         if self._libraries is None or self._display is None:
             return False
@@ -220,6 +390,7 @@ class X11Keyboard:
                 keycode, shift = layout_key
             else:
                 keycode, shift = self._bind_spare_keycode(x11, display, key.char), False
+                self._pressed_at[key.char] = time.monotonic()
         else:
             keycode, shift = KEYCODES.get(key.usage), key.shift
         if keycode is None:
@@ -242,6 +413,11 @@ class X11Keyboard:
             self._bound[char] = keycode  # now the most recently used
             return keycode
         if self._spare_keycodes is None:
+            if not self._watch_started and self._libraries is not None:
+                self._watch_started = True
+                xtst = self._libraries[1]
+                self._watch = KeymapWatch.start(x11, xtst, display, self._resource_base)
+                self._changes = 0
             self._spare_keycodes = _find_unused_keycodes(x11, display)
         if self._spare_keycodes:
             keycode = self._spare_keycodes.pop()
@@ -254,15 +430,28 @@ class X11Keyboard:
         keysym = _keysym(char)
         # On both levels: a lone letter keysym types the lowercase letter unless Shift is held.
         x11.XChangeKeyboardMapping(display, keycode, 2, (ctypes.c_ulong * 2)(keysym, keysym), 1)
-        x11.XSync(display, 0)
+        self._changes += 1
         self._bound[char] = keycode
+        self._record_bindings(x11, display)
+        x11.XSync(display, 0)
         return keycode
+
+    def _record_bindings(self, x11: ctypes.CDLL, display: int) -> None:
+        """Keep this process's root property in step with its bindings (for _clear_dead_bindings)."""
+        pairs = [
+            value for char, keycode in self._bound.items() for value in (keycode, _keysym(char))
+        ]
+        values = (ctypes.c_ulong * len(pairs))(*pairs)
+        root = x11.XDefaultRootWindow(display)
+        x11.XChangeProperty(
+            display, root, self._bindings_atom, _XA_CARDINAL, 32, 0, values, len(pairs)
+        )
 
     def _unbind_all(self) -> None:
         """Clear the spare keycodes, so the next emupos finds them unused.
 
         ponytail: at exit, not after each scan (an app that reads late would lose characters);
-        a killed emupos leaves them bound until `setxkbmap` reloads the keymap.
+        a killed emupos leaves them to the next emupos (_clear_dead_bindings).
         """
         if self._libraries is None or self._display is None:
             return
@@ -270,7 +459,185 @@ class X11Keyboard:
         for keycode in self._bound.values():
             x11.XChangeKeyboardMapping(display, keycode, 1, (ctypes.c_ulong * 1)(0), 1)
         self._bound.clear()
+        x11.XDeleteProperty(display, x11.XDefaultRootWindow(display), self._bindings_atom)
         x11.XSync(display, 0)
+
+
+class KeymapWatch:
+    """Which X clients have read the keymap since emupos's latest change (X RECORD extension).
+
+    RECORD reports the requests of every client in the order the server handles them, on a
+    second connection: emupos's own keymap changes, and the keymap reads of other clients.
+    """
+
+    def __init__(self, own_client: int, xkb_opcode: int, poll: Callable[[], None]) -> None:
+        self.own_client = own_client
+        self.xkb_opcode = xkb_opcode
+        self.poll = poll
+        self.started = False
+        self.changes = 0  # emupos's keymap changes reported so far
+        self.read_after: dict[int, int] = {}  # client -> changes reported before its last read
+        self._keep: object = None  # the ctypes callback must outlive the recording
+
+    def note(self, client: int, category: int, opcode: int, minor: int) -> None:
+        if category == _RECORD_START_OF_DATA:
+            self.started = True
+        elif category != _RECORD_FROM_CLIENT:
+            return
+        elif client == self.own_client:
+            self.changes += opcode == _X_CHANGE_KEYBOARD_MAPPING
+        elif opcode == _X_GET_KEYBOARD_MAPPING or (opcode, minor) == (
+            self.xkb_opcode,
+            _XKB_GET_MAP,
+        ):
+            self.read_after[client] = self.changes
+
+    def has_read(self, client: int, changes: int) -> bool:
+        """Whether `client` read the keymap after emupos's first `changes` changes."""
+        return self.read_after.get(client, -1) >= changes
+
+    @classmethod
+    def start(
+        cls, x11: ctypes.CDLL, xtst: ctypes.CDLL, display: int, own_client: int
+    ) -> "KeymapWatch | None":
+        """Record keymap requests on a second connection; None without RECORD."""
+        data_display: int | None = x11.XOpenDisplay(None)
+        if not data_display:
+            return None
+        major, minor, xkb_opcode, first_event, first_error = (ctypes.c_int() for _ in range(5))
+        if not xtst.XRecordQueryVersion(data_display, ctypes.byref(major), ctypes.byref(minor)):
+            x11.XCloseDisplay(data_display)
+            return None
+        x11.XQueryExtension(
+            data_display,
+            b"XKEYBOARD",
+            ctypes.byref(xkb_opcode),
+            ctypes.byref(first_event),
+            ctypes.byref(first_error),
+        )
+        watched = xtst.XRecordAllocRange()
+        watched.contents.core_requests.first = _X_CHANGE_KEYBOARD_MAPPING
+        watched.contents.core_requests.last = _X_GET_KEYBOARD_MAPPING
+        if xkb_opcode.value:
+            ext = watched.contents.ext_requests
+            ext.ext_major.first = ext.ext_major.last = xkb_opcode.value
+            ext.ext_minor.first = ext.ext_minor.last = _XKB_GET_MAP
+        all_clients = (ctypes.c_ulong * 1)(_RECORD_ALL_CLIENTS)
+        # RECORD reports on a connection of its own; the main one controls the recording.
+        # ponytail: the data connection stays open for the whole run, like the main one.
+        context = xtst.XRecordCreateContext(display, 0, all_clients, 1, ctypes.byref(watched), 1)
+        x11.XFree(watched)
+        if not context:
+            x11.XCloseDisplay(data_display)
+            return None
+        x11.XSync(display, 0)
+        watch = cls(own_client, xkb_opcode.value, lambda: xtst.XRecordProcessReplies(data_display))
+
+        def on_data(_closure: object, data: Any) -> None:  # POINTER(_RecordInterceptData)
+            record = data.contents
+            request = record.data if record.data_len else None
+            opcode, minor = (request[0], request[1]) if request else (0, 0)
+            watch.note(record.id_base, record.category, opcode, minor)
+            xtst.XRecordFreeData(data)
+
+        callback = _RecordCallback(on_data)
+        watch._keep = callback
+        if not xtst.XRecordEnableContextAsync(data_display, context, callback, None):
+            return None
+        deadline = time.monotonic() + 1
+        while not watch.started and time.monotonic() < deadline:  # changes before this go unseen
+            watch.poll()
+            time.sleep(0.001)
+        return watch if watch.started else None
+
+
+def _resource_ids(display: int) -> tuple[int, int]:
+    """(resource base, resource mask) of a connection: a client's windows are base | n."""
+    start = _DisplayStart.from_address(display)
+    return start.resource_base, start.resource_mask
+
+
+def _focused_client(x11: ctypes.CDLL, display: int, resource_mask: int) -> int | None:
+    """The resource base of the client owning the focused window; None for none or the root."""
+    window, revert_to = ctypes.c_ulong(), ctypes.c_int()
+    x11.XGetInputFocus(display, ctypes.byref(window), ctypes.byref(revert_to))
+    client = window.value & ~resource_mask
+    return client if window.value > 1 and client else None  # 0: None, 1: PointerRoot
+
+
+def _clear_dead_bindings(x11: ctypes.CDLL, display: int, root: int) -> None:
+    """Unbind the spare keycodes that killed emupos processes left behind.
+
+    Each emupos lists its bindings in a root property and owns a selection of the same name.
+    A property whose selection has no owner belongs to a process that is gone. A keycode is
+    only cleared while it still holds the recorded keysym.
+    """
+    keymap: dict[int, list[int]] | None = None
+    for atom in _list_properties(x11, display, root):
+        if not _atom_name(x11, display, atom).startswith(BINDINGS_PREFIX):
+            continue
+        if x11.XGetSelectionOwner(display, atom):
+            continue  # that emupos is still running
+        keymap = keymap if keymap is not None else _keymap(x11, display)
+        values = _read_cardinals(x11, display, root, atom)
+        for keycode, keysym in zip(values[::2], values[1::2], strict=False):
+            if keymap.get(keycode, [0])[:1] == [keysym]:
+                x11.XChangeKeyboardMapping(display, keycode, 1, (ctypes.c_ulong * 1)(0), 1)
+        x11.XDeleteProperty(display, root, atom)
+    x11.XSync(display, 0)
+
+
+def _list_properties(x11: ctypes.CDLL, display: int, window: int) -> list[int]:
+    count = ctypes.c_int()
+    atoms = x11.XListProperties(display, window, ctypes.byref(count))
+    if not atoms:
+        return []
+    try:
+        return atoms[: count.value]
+    finally:
+        x11.XFree(atoms)
+
+
+def _atom_name(x11: ctypes.CDLL, display: int, atom: int) -> str:
+    name = x11.XGetAtomName(display, atom)
+    if not name:
+        return ""
+    try:
+        return ctypes.string_at(name).decode(errors="replace")
+    finally:
+        x11.XFree(name)
+
+
+def _read_cardinals(x11: ctypes.CDLL, display: int, window: int, atom: int) -> list[int]:
+    kind, size, count, remaining = (
+        ctypes.c_ulong(),
+        ctypes.c_int(),
+        ctypes.c_ulong(),
+        ctypes.c_ulong(),
+    )
+    data = ctypes.c_void_p()
+    x11.XGetWindowProperty(
+        display,
+        window,
+        atom,
+        0,
+        1024,
+        0,
+        _XA_CARDINAL,
+        ctypes.byref(kind),
+        ctypes.byref(size),
+        ctypes.byref(count),
+        ctypes.byref(remaining),
+        ctypes.byref(data),
+    )
+    if not data.value:
+        return []
+    try:
+        if size.value != 32:
+            return []
+        return ctypes.cast(data, ctypes.POINTER(ctypes.c_ulong))[: count.value]
+    finally:
+        x11.XFree(data)
 
 
 def _keysym(char: str) -> int:
