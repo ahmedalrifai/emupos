@@ -143,7 +143,7 @@ When the printer processes GS r (`1d 72 n`), it SHALL reply with one byte comput
 
 ### Requirement: Supported print commands
 
-The printer SHALL process and render the following ESC/POS commands as defined by the Epson ESC/POS reference: initialise (ESC @, `1b 40`), which SHALL reset print settings to the profile defaults; printable text; line feed and paper feeds (LF `0a`, ESC d, ESC J) and line spacing (ESC 2, ESC 3); emphasis (ESC E) and underline (ESC -); font selection (ESC M); character size (GS !); justification (ESC a); cuts (GS V); the drawer kick (ESC p) with the effects defined by the cash-drawer capability; raster images (GS v 0); bit images (ESC *); barcodes (GS k); QR codes (GS ( k); horizontal tabs (HT `09`) with tab positions (ESC D); right-side character spacing (ESC SP); left margin (GS L) and print area width (GS W); absolute and relative print positions (ESC $, ESC \\); and buffered graphics (GS ( L and GS 8 L functions 112 store raster graphics data and 50 print it). Page mode (ESC L), NV graphics stored in non-volatile memory (the other GS ( L functions) and PDF417 symbols (GS ( k with cn = 48) SHALL NOT be rendered: each such command SHALL be consumed in full, using its declared length where it has one, SHALL produce a `printer.command.unknown` event, and SHALL leave the printer in standard mode so that following commands render normally.
+The printer SHALL process and render the following ESC/POS commands as defined by the Epson ESC/POS reference: initialise (ESC @, `1b 40`), which SHALL reset print settings to the profile defaults; printable text; line feed and paper feeds (LF `0a`, ESC d, ESC J) and line spacing (ESC 2, ESC 3); emphasis (ESC E) and underline (ESC -); font selection (ESC M); character size (GS !); justification (ESC a); cuts (GS V); print colour (ESC r), which SHALL NOT produce a `printer.command.unknown` event and, because the built-in profiles are single-colour, SHALL leave text black; the drawer kick (ESC p) with the effects defined by the cash-drawer capability; raster images (GS v 0); bit images (ESC *); barcodes (GS k); QR codes (GS ( k); horizontal tabs (HT `09`) with tab positions (ESC D); right-side character spacing (ESC SP); left margin (GS L) and print area width (GS W); absolute and relative print positions (ESC $, ESC \\); and buffered graphics (GS ( L and GS 8 L functions 112 store raster graphics data and 50 print it). Page mode (ESC L), NV graphics stored in non-volatile memory (the other GS ( L functions) and PDF417 symbols (GS ( k with cn = 48) SHALL NOT be rendered: each such command SHALL be consumed in full, using its declared length where it has one, SHALL produce a `printer.command.unknown` event, and SHALL leave the printer in standard mode so that following commands render normally.
 
 #### Scenario: Initialise resets character size
 
@@ -174,6 +174,13 @@ The printer SHALL process and render the following ESC/POS commands as defined b
 - **WHEN** the POS sends `1b 4c 48 69 0a 1d 56 00`
 - **THEN** a `printer.command.unknown` event is emitted whose data contains the bytes `1b 4c`
 - **AND** the completed receipt contains the text `Hi` rendered in standard mode
+
+#### Scenario: Print colour prints in black
+
+- **GIVEN** printer `front` uses a built-in profile
+- **WHEN** the POS sends `1b 40 1b 72 31 4e 4f 20 4f 4e 49 4f 4e 53 0a 1b 72 30 1d 56 00`
+- **THEN** the completed receipt's text is `NO ONIONS`, printed in black
+- **AND** no `printer.command.unknown` event is emitted
 
 ### Requirement: Paper geometry from the device profile
 

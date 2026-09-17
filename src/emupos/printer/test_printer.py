@@ -254,6 +254,16 @@ def test_page_mode_is_not_entered() -> None:
     assert pos.receipts[0].height_dots == 24  # one standard-mode line of Font A
 
 
+def test_print_colour_prints_in_black_without_an_event() -> None:
+    pos = Pos()
+
+    # ESC r '1' "NO ONIONS" LF ESC r '0', then the same colour changes with binary parameters
+    pos.send("1b 40 1b 72 31 4e 4f 20 4f 4e 49 4f 4e 53 0a 1b 72 30 1b 72 01 1b 72 00 1d 56 00")
+
+    assert pos.texts == ["NO ONIONS\n"]
+    assert pos.events_of(EventType.PRINTER_COMMAND_UNKNOWN) == []
+
+
 def test_nv_graphics_are_consumed_in_full() -> None:
     pos = Pos()
 

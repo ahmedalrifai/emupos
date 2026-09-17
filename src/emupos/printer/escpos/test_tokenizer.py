@@ -1,5 +1,6 @@
 from itertools import pairwise
 
+import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -141,6 +142,29 @@ def test_status_requests_with_a_second_parameter() -> None:
         "DLE DC4",
         "Text:A",
     ]
+
+
+@pytest.mark.parametrize(
+    ("command", "name"),
+    [
+        ("1b 72 31", "ESC r"),
+        ("1d 54 31", "GS T"),
+        ("1d 49 31", "GS I"),
+        ("1b 75 30", "ESC u"),
+        ("1b 76", "ESC v"),
+        ("1b 69", "ESC i"),
+        ("1b 6d", "ESC m"),
+        ("1b 54 31", "ESC T"),
+        ("1b 57 41 41 41 41 41 41 41 41", "ESC W"),
+        ("1d 24 41 41", "GS $"),
+        ("1d 5c 41 41", "GS \\"),
+        ("1c 70 31 30", "FS p"),
+        ("1d 2f 30", "GS /"),
+        ("1d 2a 01 02" + " 41" * 16, "GS *"),  # x * y * 8 data bytes
+    ],
+)
+def test_printable_parameters_belong_to_their_command(command: str, name: str) -> None:
+    assert names(tokens_of(bytes.fromhex(command) + b"OK")) == [name, "Text:OK"]
 
 
 def test_large_image_split_into_many_reads() -> None:

@@ -51,6 +51,7 @@ IGNORED_COMMANDS = frozenset(
         "ESC c 4",  # esc_lc_4: paper sensors that stop printing
         "ESC c 5",  # esc_lc_5: panel buttons
         "ESC U",  # esc_cu: unidirectional printing
+        "ESC r",  # esc_lr: print colour (every profile is single-colour, so red prints black)
         "GS P",  # gs_cp: motion units (emupos always works in dots)
         "ESC S",  # esc_cs: select standard mode, the only mode simulated
     }
