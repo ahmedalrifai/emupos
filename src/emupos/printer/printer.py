@@ -47,6 +47,10 @@ NV_GRAPHICS_CAPACITY_REPLIES = {
 }
 
 
+# The obsolete ESC v and ESC u 0 (esc_lv, esc_lu) are answered with the byte of GS r 1 and GS r 2.
+OBSOLETE_STATUS_REQUESTS = {b"\x1b\x76": 1, b"\x1b\x75\x00": 2, b"\x1b\x75\x30": 2}
+
+
 @dataclass(frozen=True, slots=True)
 class PrinterState:
     faults: tuple[str, ...]  # active faults, sorted by name
@@ -201,8 +205,13 @@ class Printer:
         """Process print data and non-real-time commands, in the order received."""
         if isinstance(token, Command):
             match token.name:
-                case "GS r":  # gs_lr
-                    if (reply := status.gs_r(token.params[0], self._status())) is not None:
+                case "GS r" | "ESC v" | "ESC u":  # gs_lr, esc_lv, esc_lu
+                    n = (
+                        token.params[0]
+                        if token.name == "GS r"
+                        else OBSOLETE_STATUS_REQUESTS.get(token.raw, 0)  # 0: no reply
+                    )
+                    if (reply := status.gs_r(n, self._status())) is not None:
                         self._write(connection, reply, out)
                         return
                 case "GS a":  # gs_la: enabling sends the current status at once
@@ -214,7 +223,7 @@ class Printer:
                     if (pulse := esc_p_pulse(token.params[0], token.params[1])) is not None:
                         self._kick(pulse, out)
                         return
-                case "GS V":  # gs_cv: the cut ends the job
+                case "GS V" | "ESC i" | "ESC m":  # gs_cv, esc_li, esc_lm: the cut ends the job
                     self._complete_job(connection, "cut", out)
                     return
                 case "GS ( L" | "GS 8 L" if token.data in NV_GRAPHICS_CAPACITY_REPLIES:
