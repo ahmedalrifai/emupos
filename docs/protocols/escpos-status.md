@@ -231,15 +231,19 @@ Only the PC437 code page has glyphs. Selecting another code page, or a number mi
 
 ### Consumed without any effect
 
-These change nothing on a receipt image, so emupos consumes them silently: `CR`, `GS b`, `FS .`, `FS &`, `ESC =`, `ESC c 0`, `ESC c 1`, `ESC c 3`, `ESC c 4`, `ESC c 5`, `ESC U`, `GS P`, `ESC S`.
+These change nothing on a receipt image, so emupos consumes them silently: `CR`, `GS b`, `FS .`, `FS &`, `ESC =`, `ESC c 0`, `ESC c 1`, `ESC c 3`, `ESC c 4`, `ESC c 5`, `ESC U`, `GS P`, `ESC S`, and `ESC r` (print colour: every built-in profile is single-colour, so text asked for in red prints in black, as on a real single-colour printer).
 
 ### Consumed and reported as unknown
 
 These are recognised and consumed in full, but not simulated. Each one publishes a `printer.command.unknown` event whose data has the bytes and the command name, and printing continues normally:
 
 - character sets and rotation: `ESC R`, `ESC V`
-- page mode: `ESC L` (the printer stays in standard mode)
+- page mode: `ESC L` (the printer stays in standard mode), `ESC T`, `ESC W`, `GS $`, `GS \`
+- print position: `GS T`
 - NV graphics and other function commands: `GS ( L` / `GS 8 L` functions other than 48, 50, 51 and 112, other `GS (` commands, `ESC (`, `FS (`
+- stored logos and bit images: `FS p`, `GS *`, `GS /` (nothing is printed)
+- the partial cuts `ESC i` and `ESC m`: they do not end the receipt
+- `GS I`, `ESC u` and `ESC v`: no reply is sent
 - `GS ( k` symbols other than QR codes, such as PDF417
 - `GS k` in other symbologies (UPC-E, CODABAR, CODE93, GS1-128, GS1 DataBar, CODE128 with m = 79); the event names the symbology
 - `DLE ENQ`, `DLE DC4` functions other than 1, `DLE EOT` and `GS r` with other values of n

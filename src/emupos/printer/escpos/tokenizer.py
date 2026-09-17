@@ -100,6 +100,10 @@ def _barcode_length(params: bytes, stream: bytes, start: int) -> int | None:
     return 0
 
 
+def _downloaded_bit_image_length(params: bytes, _stream: bytes, _start: int) -> int:
+    return params[0] * params[1] * 8  # x * y * 8 bytes
+
+
 def _graphics_length(params: bytes, _stream: bytes, _start: int) -> int:
     return int.from_bytes(params, "little")
 
@@ -145,10 +149,12 @@ COMMANDS: dict[bytes, CommandSpec] = {
     b"\x1d\x42": CommandSpec("GS B", 1),                          # gs_cb
     b"\x1d\x62": CommandSpec("GS b", 1),                          # gs_lb
     b"\x1b\x74": CommandSpec("ESC t", 1),                         # esc_lt
+    b"\x1b\x72": CommandSpec("ESC r", 1),                         # esc_lr
     b"\x1b\x52": CommandSpec("ESC R", 1),                         # esc_cr
     b"\x1b\x20": CommandSpec("ESC SP", 1),                        # esc_space
     b"\x1b\x24": CommandSpec("ESC $", 2),                         # esc_dollarssign
     b"\x1b\x5c": CommandSpec("ESC \\", 2),                        # esc_backslash
+    b"\x1d\x54": CommandSpec("GS T", 1),                          # gs_ct
     b"\x1b\x44": CommandSpec("ESC D", 0, _tab_positions_length),  # esc_cd
     b"\x1b\x55": CommandSpec("ESC U", 1),                         # esc_cu
     b"\x1b\x56": CommandSpec("ESC V", 1),                         # esc_cv
@@ -168,14 +174,26 @@ COMMANDS: dict[bytes, CommandSpec] = {
     # Page mode (not simulated)
     b"\x1b\x4c": CommandSpec("ESC L"),                            # esc_cl
     b"\x1b\x53": CommandSpec("ESC S"),                            # esc_cs
+    b"\x1b\x54": CommandSpec("ESC T", 1),                         # esc_ct
+    b"\x1b\x57": CommandSpec("ESC W", 8),                         # esc_cw
+    b"\x1d\x24": CommandSpec("GS $", 2),                          # gs_dollarssign
+    b"\x1d\x5c": CommandSpec("GS \\", 2),                         # gs_backslash
     # Paper cut, drawer and status
     b"\x1d\x56": CommandSpec("GS V", 1, _cut_length),             # gs_cv
+    b"\x1b\x69": CommandSpec("ESC i"),                            # esc_li (obsolete)
+    b"\x1b\x6d": CommandSpec("ESC m"),                            # esc_lm (obsolete)
     b"\x1b\x70": CommandSpec("ESC p", 3),                         # esc_lp
     b"\x1d\x72": CommandSpec("GS r", 1),                          # gs_lr
     b"\x1d\x61": CommandSpec("GS a", 1),                          # gs_la
+    b"\x1b\x75": CommandSpec("ESC u", 1),                         # esc_lu (obsolete)
+    b"\x1b\x76": CommandSpec("ESC v"),                            # esc_lv (obsolete)
+    b"\x1d\x49": CommandSpec("GS I", 1),                          # gs_ci
     # Images
     b"\x1b\x2a": CommandSpec("ESC *", 3, _bit_image_length),      # esc_asterisk
     b"\x1d\x76\x30": CommandSpec("GS v 0", 5, _raster_length),    # gs_lv_0
+    b"\x1c\x70": CommandSpec("FS p", 2),                          # fs_lp (obsolete)
+    b"\x1d\x2a": CommandSpec("GS *", 2, _downloaded_bit_image_length),  # gs_asterisk (obsolete)
+    b"\x1d\x2f": CommandSpec("GS /", 1),                          # gs_slash (obsolete)
     b"\x1d\x28": CommandSpec("GS (", 3, _length_in_params(1)),    # gs_lparen_ce etc. (fn, pL, pH)
     b"\x1d\x28\x4c": CommandSpec("GS ( L", 2, _length_in_params(0)),  # gs_lparen_cl (pL, pH)
     b"\x1d\x38\x4c": CommandSpec("GS 8 L", 4, _graphics_length),     # gs_lparen_cl (p1-p4)
