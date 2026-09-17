@@ -1,8 +1,12 @@
 """X11 keyboard checks with the environment and library loader replaced; no X server needed."""
 
+import ctypes
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+
 import pytest
 
-from emupos.scanner.keys import ENTER, LEFT_SHIFT, TAB, US_LAYOUT, PhysicalKey
+from emupos.scanner.keys import ENTER, LEFT_SHIFT, TAB, US_LAYOUT, PhysicalKey, plan_keys
 from emupos.transports.keyboard import x11
 from emupos.transports.keyboard.keyboard import KeyboardUnavailableError
 
@@ -85,3 +89,264 @@ def test_keycodes(usage: int, keycode: int) -> None:
 
 def test_every_us_key_has_a_keycode() -> None:
     assert {key.usage for key in US_LAYOUT.values()} <= set(x11.KEYCODES)
+
+
+# --- typing, with libX11, libXtst and libxkbcommon replaced by fakes ------------------------
+
+SHIFT_L, KP_ADD, ARABIC_SHEEN = 0xFFE1, 0xFFAB, 0x5D4
+SHIFT_KEYCODE = 42 + 8
+# Two groups, two levels each: group 1 is a US layout, group 2 an Arabic one.
+KEYMAP = {
+    10: [ord("1"), ord("!"), ord("1"), ord("!")],
+    38: [ord("a"), ord("A"), ARABIC_SHEEN, ARABIC_SHEEN],
+    SHIFT_KEYCODE: [SHIFT_L] * 4,
+    86: [KP_ADD] * 4,
+}
+
+
+def keysym_to_utf32(keysym: int) -> int:
+    if keysym == ARABIC_SHEEN:
+        return ord("ش")
+    if keysym == KP_ADD:
+        return ord("+")
+    if keysym >> 24 == 1:
+        return keysym & 0xFFFFFF
+    return keysym if 0x20 <= keysym <= 0xFF else 0
+
+
+class FakeX11:
+    """The libX11 calls X11Keyboard makes, on a small keymap."""
+
+    def __init__(self, spare: Sequence[int], group: int, caps: bool) -> None:
+        self.keymap = {**KEYMAP, **{keycode: [0] * 4 for keycode in spare}}
+        self.group = group
+        self.locked = x11.LOCK_MASK if caps else 0
+        self.lock_calls: list[tuple[int, int]] = []
+        self.mapping_changes = 0
+
+    def current_keymap(self, _x11: object, _display: object) -> dict[int, list[int]]:
+        return {keycode: list(keysyms) for keycode, keysyms in self.keymap.items()}
+
+    def XSetErrorHandler(self, _handler: object) -> None:  # noqa: N802
+        pass
+
+    def XOpenDisplay(self, _name: object) -> int:  # noqa: N802
+        return 1
+
+    def XSync(self, *_: object) -> None:  # noqa: N802
+        pass
+
+    def XFlush(self, *_: object) -> None:  # noqa: N802
+        pass
+
+    def XChangeKeyboardMapping(  # noqa: N802
+        self, _display: int, keycode: int, per_keycode: int, keysyms: Sequence[int], _count: int
+    ) -> None:
+        self.keymap[keycode] = [*keysyms[:per_keycode], *[0] * (4 - per_keycode)]
+        self.mapping_changes += 1
+
+    def XkbGetState(self, _display: int, _device: int, state: ctypes.Array[ctypes.c_char]) -> int:  # noqa: N802
+        state[0], state[9] = bytes([self.group]), bytes([self.locked])
+        return 0
+
+    def XkbLockModifiers(self, _display: int, _device: int, affect: int, values: int) -> int:  # noqa: N802
+        self.lock_calls.append((affect, values))
+        self.locked = self.locked & ~affect | values
+        return 1
+
+
+class FakeXtst:
+    def __init__(self) -> None:
+        self.pressed: list[int] = []
+
+    def XTestQueryExtension(self, *_: object) -> int:  # noqa: N802
+        return 1
+
+    def XTestFakeKeyEvent(self, _display: int, keycode: int, down: int, _delay: int) -> int:  # noqa: N802
+        if down:
+            self.pressed.append(keycode)
+        return 1
+
+
+@dataclass
+class Setup:
+    keyboard: x11.X11Keyboard
+    x11: FakeX11
+    xtst: FakeXtst
+    at_exit: list[Callable[[], None]]
+
+    def type(self, text: str, unicode: bool = True) -> list[bool]:
+        keys = plan_keys(text, "none", unicode=unicode)
+        self.keyboard.start_scan(keys)
+        try:
+            return [self.keyboard.press(key) for key in keys]
+        finally:
+            self.keyboard.end_scan()
+
+
+def ready_keyboard(
+    monkeypatch: pytest.MonkeyPatch,
+    spare: Sequence[int] = (200, 201),
+    group: int = 0,
+    caps: bool = False,
+    xkbcommon: bool = True,
+) -> Setup:
+    fake_x11, fake_xtst = FakeX11(spare, group, caps), FakeXtst()
+    at_exit: list[Callable[[], None]] = []
+    monkeypatch.setenv("XDG_SESSION_TYPE", "x11")
+    monkeypatch.setenv("DISPLAY", ":0")
+    monkeypatch.setattr(x11, "load_libraries", lambda: (fake_x11, fake_xtst))
+    monkeypatch.setattr(x11, "load_keysym_to_utf32", lambda: keysym_to_utf32 if xkbcommon else None)
+    monkeypatch.setattr(x11, "_keymap", fake_x11.current_keymap)
+    monkeypatch.setattr(x11.atexit, "register", at_exit.append)
+    keyboard = x11.X11Keyboard()
+    keyboard.check_ready()
+    return Setup(keyboard, fake_x11, fake_xtst, at_exit)
+
+
+def test_layout_key_types_a_character_without_changing_the_keymap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    setup = ready_keyboard(monkeypatch)
+
+    assert setup.type("a1") == [True, True]
+    assert setup.xtst.pressed == [38, 10]
+    assert setup.x11.mapping_changes == 0
+
+
+def test_shift_level_of_a_layout_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    setup = ready_keyboard(monkeypatch)
+
+    setup.type("A!")
+
+    assert setup.xtst.pressed == [SHIFT_KEYCODE, 38, SHIFT_KEYCODE, 10]
+    assert setup.x11.mapping_changes == 0
+
+
+def test_keypad_key_is_not_used(monkeypatch: pytest.MonkeyPatch) -> None:
+    setup = ready_keyboard(monkeypatch)
+
+    setup.type("+")
+
+    assert setup.xtst.pressed == [201]
+    assert setup.x11.keymap[201][:2] == [ord("+"), ord("+")]
+
+
+def test_second_group_when_it_is_active(monkeypatch: pytest.MonkeyPatch) -> None:
+    setup = ready_keyboard(monkeypatch, group=1)
+
+    setup.type("شa")
+
+    assert setup.xtst.pressed == [38, 201]  # group 2 has no `a`
+    assert setup.x11.keymap[201][:2] == [ord("a"), ord("a")]
+
+
+def test_missing_capital_letter_is_bound_on_both_levels(monkeypatch: pytest.MonkeyPatch) -> None:
+    setup = ready_keyboard(monkeypatch)
+
+    setup.type("Z")
+
+    assert setup.x11.keymap[201][:2] == [ord("Z"), ord("Z")]  # a lone `Z` types `z` unshifted
+
+
+def test_missing_characters_are_bound_before_the_first_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    setup = ready_keyboard(monkeypatch)
+    keys = plan_keys("كوك", "none", unicode=True)
+
+    setup.keyboard.start_scan(keys)
+    assert setup.x11.mapping_changes == 2
+    for key in keys:
+        setup.keyboard.press(key)
+    setup.keyboard.end_scan()
+
+    assert setup.xtst.pressed == [201, 200, 201]
+    assert setup.x11.mapping_changes == 2  # the second ك is not bound again
+
+
+def test_characters_are_bound_again_after_the_keymap_is_reloaded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    setup = ready_keyboard(monkeypatch)
+    setup.type("é")
+    setup.x11.keymap[201] = [0] * 4  # setxkbmap while emupos runs
+
+    setup.type("é")
+
+    assert setup.xtst.pressed == [201, 201]
+    assert setup.x11.keymap[201][:2] == [ord("é"), ord("é")]
+
+
+def test_least_recently_used_spare_keycode_is_reused(monkeypatch: pytest.MonkeyPatch) -> None:
+    setup = ready_keyboard(monkeypatch)
+
+    assert all(setup.type("éüéß"))
+
+    assert setup.xtst.pressed == [201, 200, 201, 200]  # ß takes ü's: é was typed later
+    assert setup.x11.keymap[200][:2] == [ord("ß"), ord("ß")]
+
+
+def test_no_spare_keycode_types_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    setup = ready_keyboard(monkeypatch, spare=())
+
+    assert setup.type("é") == [False]
+    assert setup.xtst.pressed == []
+
+
+def test_without_libxkbcommon_every_character_uses_a_spare_keycode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    setup = ready_keyboard(monkeypatch, xkbcommon=False)
+
+    setup.type("a")
+
+    assert setup.xtst.pressed == [201]
+    assert setup.x11.keymap[201][:2] == [ord("a"), ord("a")]
+
+
+def test_caps_lock_is_off_during_a_unicode_scan(monkeypatch: pytest.MonkeyPatch) -> None:
+    setup = ready_keyboard(monkeypatch, caps=True)
+    keys = plan_keys("a", "none", unicode=True)
+
+    setup.keyboard.start_scan(keys)
+    assert not setup.x11.locked
+    setup.keyboard.end_scan()
+
+    assert setup.x11.lock_calls == [(x11.LOCK_MASK, 0), (x11.LOCK_MASK, x11.LOCK_MASK)]
+
+
+@pytest.mark.parametrize(("caps", "unicode"), [(True, False), (False, True)])
+def test_caps_lock_is_left_alone(
+    monkeypatch: pytest.MonkeyPatch, caps: bool, unicode: bool
+) -> None:
+    setup = ready_keyboard(monkeypatch, caps=caps)
+
+    setup.type("a", unicode=unicode)
+
+    assert setup.x11.lock_calls == []
+
+
+def test_caps_lock_comes_back_when_the_last_open_scan_ends(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    setup = ready_keyboard(monkeypatch, caps=True)
+    keyboard = setup.keyboard
+
+    keyboard.start_scan(plan_keys("a", "none", unicode=True))
+    keyboard.start_scan(plan_keys("b", "none", unicode=True))
+    keyboard.end_scan()
+    assert not setup.x11.locked
+    keyboard.end_scan()
+
+    assert setup.x11.lock_calls == [(x11.LOCK_MASK, 0), (x11.LOCK_MASK, x11.LOCK_MASK)]
+
+
+def test_exit_clears_the_spare_keycodes(monkeypatch: pytest.MonkeyPatch) -> None:
+    setup = ready_keyboard(monkeypatch)
+    setup.type("éü")
+
+    for handler in setup.at_exit:
+        handler()
+
+    assert setup.x11.keymap[200] == setup.x11.keymap[201] == [0] * 4

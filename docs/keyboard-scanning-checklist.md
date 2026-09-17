@@ -55,6 +55,8 @@ For every scan: run the command, then click into the target during the 3-second 
 - [ ] `echo $XDG_SESSION_TYPE` prints `x11`.
 - [ ] Arabic layout: `setxkbmap -layout us,ara -option grp:alt_shift_toggle`, switch the target window to Arabic with Alt+Shift, run the Arabic item above. Restore with `setxkbmap us`.
 - [ ] `--unicode` into gedit and the browser with the default 10 ms delay and with `inter_key_delay_ms: 0`: every character arrives exactly, in order.
+- [ ] Caps Lock on, `emupos scan abc123 --unicode` into gedit and the browser: exactly `abc123`, and Caps Lock is still on afterwards.
+- [ ] Arabic group active, `emupos scan "كود-42" --unicode` into the browser: exactly `كود-42`. The key logger's `code` values are the keys the Arabic layout has these characters on (compare by pressing them yourself), not empty.
 - [ ] Wayland session: `emupos scan 123` is refused and the fix mentions `mode: serial`.
 - [ ] `env -u DISPLAY emupos run`: scans are refused and the fix mentions `mode: serial`.
 - [ ] Without libXtst (for example a container without `libxtst6`): scans are refused and the fix names libXtst.
@@ -64,12 +66,13 @@ The key codes, Shift, Enter and `--unicode` typing can also be checked without a
 ```sh
 docker run --rm -it -v "$PWD/src:/src:ro" python:3.13-slim bash
 apt-get update && apt-get install -y --no-install-recommends xvfb x11-xkb-utils xkb-data x11-utils libxtst6
-Xvfb :99 & export DISPLAY=:99 XDG_SESSION_TYPE=x11 PYTHONPATH=/src
-xev -root -event keyboard &
+Xvfb :99 & sleep 1
+export DISPLAY=:99 XDG_SESSION_TYPE=x11 PYTHONPATH=/src
+xev -root -event keyboard & sleep 1
 python -c 'import asyncio
 from emupos.transports.keyboard.x11 import X11Keyboard
 from emupos.transports.keyboard.keyboard import type_keys
-from emupos.transports.keyboard.keys import plan_keys
+from emupos.scanner.keys import plan_keys
 keyboard = X11Keyboard(); keyboard.check_ready()
 print(asyncio.run(type_keys(keyboard, plan_keys("Ab1-", "enter", unicode=False), 10)))'
 ```

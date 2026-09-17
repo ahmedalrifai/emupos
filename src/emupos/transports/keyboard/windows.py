@@ -10,6 +10,7 @@ them as accepted, so `press` returning True does not prove the keys arrived.
 
 import ctypes
 import sys
+from collections.abc import Sequence
 
 from emupos.scanner.keys import ENTER, LEFT_SHIFT, TAB, US_LAYOUT, Key, UnicodeText
 from emupos.transports.keyboard.keyboard import KeyboardUnavailableError
@@ -120,6 +121,12 @@ class WindowsKeyboard:
             raise KeyboardUnavailableError(
                 "the Windows keyboard is only available on Windows", "use system_keyboard()"
             )
+
+    def start_scan(self, keys: Sequence[Key]) -> None:
+        pass  # each event carries its own key code or text: nothing to prepare
+
+    def end_scan(self) -> None:
+        pass
 
     def press(self, key: Key) -> bool:
         if (events := key_events(key)) is None:

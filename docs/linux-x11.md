@@ -45,7 +45,19 @@ A serial scanner writes each scan to a virtual serial port that the POS opens, w
 
 emupos presses keys by their physical position on a US keyboard, as a real scanner does. The active layout decides which characters appear: with an Arabic or AZERTY layout active, letter-bearing barcodes come out as that layout's characters, exactly as with real hardware.
 
-`emupos scan --unicode` (or `"unicode": true` in the API) types the exact characters instead. For each character emupos maps one unused key code to that character, the same technique `xdotool type` uses. That key code keeps the last character typed; no physical key uses it.
+`emupos scan --unicode` (or `"unicode": true` in the API) types the exact characters instead, as `xdotool type` does:
+
+- **Characters the active layout has** are typed with that layout's keys, with Shift where needed. An application sees those keys' positions, as with a real keyboard. For example, `ش` under an Arabic layout is typed with the A key.
+- **Other characters** get an unused key code that emupos maps to the character. No physical key uses these key codes, so an application sees no key position for them.
+
+Looking characters up in the layout needs the libxkbcommon library (`sudo apt install libxkbcommon0` on Debian and Ubuntu, `sudo dnf install libxkbcommon` on Fedora). GTK and Qt desktops already have it. Without it, every character uses an unused key code.
+
+Caps Lock does not change `--unicode` text: emupos turns it off for the scan and back on afterwards. Scans without `--unicode` follow Caps Lock, as a real scanner does.
+
+### Limits
+
+- **Different characters per scan.** Each different character the layout lacks keeps its own key code while emupos runs, so an application that is slow to handle the keys still reads the right characters. An X server has only a few unused key codes (19 on Xvfb). A scan with more different missing characters than that reuses the key code of the least recently typed one. An application that has not yet handled that earlier keystroke then reads the new character. For example, 28 different Arabic letters while a US layout is active can hit this; the same scan under an Arabic layout cannot.
+- **Stopping emupos.** emupos clears its key codes when it stops with Ctrl+C or SIGTERM. A killed emupos (`kill -9`, a crash) leaves them mapped. Run `setxkbmap` with your usual layout (for example `setxkbmap us`), or log in again, to get them back.
 
 ## Headless machines
 

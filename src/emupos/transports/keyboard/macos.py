@@ -7,6 +7,7 @@ terminal) is allowed under Accessibility, so `check_ready` asks Quartz before ev
 import importlib
 import os
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -53,6 +54,12 @@ class MacKeyboard:
                 "then scan again; if it is still refused, quit and reopen that app "
                 "(see docs/macos-accessibility.md)",
             )
+
+    def start_scan(self, keys: Sequence[Key]) -> None:
+        pass  # each event carries its own key code or text: nothing to prepare
+
+    def end_scan(self) -> None:
+        pass
 
     def press(self, key: Key) -> bool:
         if sys.platform != "darwin":
