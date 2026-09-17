@@ -179,6 +179,17 @@ class PrintModel:
     def _print_and_feed_dots(self, command: Command) -> None:  # esc_cj
         self._print_line(command.params[0], text_lines=0 if self.receipt.at_line_start else 1)
 
+    def _return_to_line_start(self, command: Command) -> None:  # gs_ct: ignored at the line start
+        n = command.params[0]
+        if n not in (0, 1, 48, 49):
+            self._unknown(command)
+        elif self.receipt.at_line_start:
+            pass
+        elif n in (1, 49):
+            self._print_line(self.settings.line_spacing)  # the same as LF
+        else:
+            self.receipt.discard_line()
+
     # --- horizontal position -----------------------------------------------------------------
 
     def _horizontal_tab(self, _command: Command) -> None:  # ht
@@ -460,6 +471,7 @@ class PrintModel:
         "LF": _line_feed,
         "ESC d": _print_and_feed_lines,
         "ESC J": _print_and_feed_dots,
+        "GS T": _return_to_line_start,
         "ESC 2": _select_default_line_spacing,
         "ESC 3": _set_line_spacing,
         "HT": _horizontal_tab,

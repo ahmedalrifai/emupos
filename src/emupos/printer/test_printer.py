@@ -230,6 +230,18 @@ def test_gs_r_waits_behind_a_blocking_fault() -> None:
     assert len(pos.take()) == 1
 
 
+def test_obsolete_status_requests_reply_like_gs_r() -> None:
+    pos = Pos()
+    pos.set_fault("paper-near-end")
+    pos.send("1b 70 00 19 fa")  # opens the drawer: pin 3 goes high
+
+    pos.send("1b 76 1b 75 00 1b 75 30 1b 75 01")  # ESC v, ESC u 0, ESC u '0', ESC u 1
+
+    assert pos.take() == bytes.fromhex("03 01 01")  # near end, pin 3 high twice, nothing for n = 1
+    [unknown] = pos.events_of(EventType.PRINTER_COMMAND_UNKNOWN)
+    assert unknown.data == {"bytes": "1b 75 01", "command": "ESC u"}
+
+
 # --- Supported print commands -----------------------------------------------------------------
 
 
@@ -264,6 +276,17 @@ def test_print_colour_prints_in_black_without_an_event() -> None:
     assert pos.events_of(EventType.PRINTER_COMMAND_UNKNOWN) == []
 
 
+def test_gs_t_prints_or_discards_the_current_line() -> None:
+    pos = Pos()
+
+    # GS T 1 at the line start (ignored), "A" GS T 1 (printed), "B" GS T 0 (discarded), "C" LF
+    pos.send("1d 54 31 41 1d 54 31 42 1d 54 30 43 0a 1d 54 02 1d 56 00")
+
+    assert pos.texts == ["A\nC\n"]
+    [unknown] = pos.events_of(EventType.PRINTER_COMMAND_UNKNOWN)
+    assert unknown.data == {"bytes": "1d 54 02", "command": "GS T"}
+
+
 def test_nv_graphics_are_consumed_in_full() -> None:
     pos = Pos()
 
@@ -290,6 +313,15 @@ def test_cuts_separate_receipts_on_one_connection() -> None:
     pos = Pos()
 
     pos.send("41 0a 1d 56 00 42 0a 1d 56 00")
+
+    assert pos.texts == ["A\n", "B\n"]
+    assert [r.boundary for r in pos.receipts] == ["cut", "cut"]
+
+
+def test_partial_cuts_end_the_job() -> None:
+    pos = Pos()
+
+    pos.send("41 0a 1b 69 42 0a 1b 6d")  # ESC i, ESC m
 
     assert pos.texts == ["A\n", "B\n"]
     assert [r.boundary for r in pos.receipts] == ["cut", "cut"]

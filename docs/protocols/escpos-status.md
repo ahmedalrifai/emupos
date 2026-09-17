@@ -8,6 +8,7 @@ This page lists the bytes emupos sends back, bit by bit. The bit layouts follow 
 |---|---|
 | `DLE EOT` | <https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/dle_eot.html> |
 | `GS r` | <https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/gs_lr.html> |
+| `ESC v`, `ESC u` (obsolete status requests) | <https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/esc_lv.html>, <https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/esc_lu.html> |
 | `GS a` (Automatic Status Back) | <https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/gs_la.html> |
 | `ESC p` (drawer kick) | <https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/esc_lp.html> |
 | `DLE DC4 fn 1` (real-time drawer pulse) | <https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/dle_dc4_fn1.html> |
@@ -30,7 +31,7 @@ All bytes on this page are hexadecimal.
 
 While a blocking fault is active, the printer keeps accepting bytes but holds print data and ordinary commands, in order, without printing them. Clearing the last blocking fault processes what was held.
 
-**Real-time commands are never held.** `DLE EOT` and `DLE DC4` are answered as soon as they arrive, even while printing is blocked. `GS r`, `GS a` and `ESC p` are ordinary commands: while printing is blocked they wait with the print data. Bytes inside another command's data (for example image data that happens to contain `10 04 01`) are part of that command, never a status request.
+**Real-time commands are never held.** `DLE EOT` and `DLE DC4` are answered as soon as they arrive, even while printing is blocked. `GS r`, `ESC v`, `ESC u`, `GS a` and `ESC p` are ordinary commands: while printing is blocked they wait with the print data. Bytes inside another command's data (for example image data that happens to contain `10 04 01`) are part of that command, never a status request.
 
 ## `DLE EOT n` — real-time status (`10 04 n`)
 
@@ -116,6 +117,17 @@ Replies: `00` while pin 3 is low, `01` while it is high.
 Other values (for example ink status) get no reply and publish a `printer.command.unknown` event.
 
 `GS r` is not a real-time command. While `cover-open`, `paper-out` or `offline` is active, its reply is sent only after the fault is cleared.
+
+### `ESC v` and `ESC u n` (obsolete)
+
+Older POS software asks for the same bytes with these commands, and emupos answers them like `GS r`, holding them while printing is blocked:
+
+| Request | Reply |
+|---|---|
+| `ESC v` (`1b 76`) | the paper sensor byte of `1d 72 01` |
+| `ESC u n` (`1b 75 n`), n = 0 or 48 | the drawer byte of `1d 72 02` |
+
+`ESC u` with any other n gets no reply and publishes a `printer.command.unknown` event.
 
 ## `GS a n` — Automatic Status Back (`1d 61 n`)
 
@@ -212,6 +224,7 @@ The printer recognises a command by its bytes and consumes it completely, includ
 | Commands | What emupos does |
 |---|---|
 | Printable text (`20`–`ff`), `LF`, `ESC d`, `ESC J`, `ESC 2`, `ESC 3` | Prints text and feeds paper; wraps text that does not fit the line |
+| `GS T` | Returns to the start of the line: n = 1 or 49 prints the line first (like `LF`), n = 0 or 48 discards it; ignored at the start of a line |
 | `ESC @` | Resets print settings to the profile defaults and discards the unprinted line |
 | `ESC !`, `ESC E`, `ESC G`, `ESC -`, `ESC M`, `GS !`, `GS B` | Font, bold (double-strike looks the same as bold), underline, character size, reverse printing |
 | `ESC a`, `ESC {` | Justification and upside-down printing; ignored when sent in the middle of a line |
@@ -223,9 +236,9 @@ The printer recognises a command by its bytes and consumes it completely, includ
 | `GS k` | Barcodes: UPC-A, EAN-13, EAN-8, CODE39, ITF and CODE128 (m = 73) |
 | `GS w`, `GS h`, `GS H`, `GS f` | Barcode module width, height, and position and font of the human-readable text |
 | `GS ( k` with cn = 49 | QR codes: module size (fn 167), error correction (fn 169), store (fn 180), print (fn 181); always printed as model 2 |
-| `GS V` | Ends the receipt (any cut form) |
+| `GS V`, `ESC i`, `ESC m` | Ends the receipt (any cut form; `ESC i` and `ESC m` are Epson's obsolete partial cuts) |
 | `ESC p`, `DLE DC4 fn 1` | Opens the drawer |
-| `DLE EOT n` (n = 1–4), `GS r n` (n = 1, 2, 49, 50), `GS a n` | Status replies, as described above |
+| `DLE EOT n` (n = 1–4), `GS r n` (n = 1, 2, 49, 50), `ESC v`, `ESC u n` (n = 0, 48), `GS a n` | Status replies, as described above |
 
 Only the PC437 code page has glyphs. Selecting another code page, or a number missing from the profile, publishes `printer.codepage.unsupported`, and bytes `80`–`ff` then print as a placeholder that fills one character cell. Bytes `20`–`7e` always print as ASCII. The receipt's text dump shows the real characters for code pages emupos has a character mapping for (PC720, PC864 and WPC1256 among them), and U+FFFD otherwise.
 
@@ -239,15 +252,13 @@ These are recognised and consumed in full, but not simulated. Each one publishes
 
 - character sets and rotation: `ESC R`, `ESC V`
 - page mode: `ESC L` (the printer stays in standard mode), `ESC T`, `ESC W`, `GS $`, `GS \`
-- print position: `GS T`
 - NV graphics and other function commands: `GS ( L` / `GS 8 L` functions other than 48, 50, 51 and 112, other `GS (` commands, `ESC (`, `FS (`
 - stored logos and bit images: `FS p`, `GS *`, `GS /` (nothing is printed)
-- the partial cuts `ESC i` and `ESC m`: they do not end the receipt
-- `GS I`, `ESC u` and `ESC v`: no reply is sent
+- `GS I` (no reply is sent)
 - `GS ( k` symbols other than QR codes, such as PDF417
 - `GS k` in other symbologies (UPC-E, CODABAR, CODE93, GS1-128, GS1 DataBar, CODE128 with m = 79); the event names the symbology
-- `DLE ENQ`, `DLE DC4` functions other than 1, `DLE EOT` and `GS r` with other values of n
-- `ESC *`, `GS v 0`, `ESC M` and `ESC p` with a mode or parameter they do not accept
+- `DLE ENQ`, `DLE DC4` functions other than 1, `DLE EOT`, `GS r` and `ESC u` with other values of n
+- `ESC *`, `GS v 0`, `ESC M`, `ESC p` and `GS T` with a mode or parameter they do not accept
 
 Some POS libraries send these. When one of them matters for your receipts, open a device or protocol request. Unknown commands never affect status replies.
 

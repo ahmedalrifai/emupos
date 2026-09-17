@@ -125,7 +125,7 @@ When the printer processes GS a (`1d 61 n`) with n other than 0, it SHALL enable
 
 ### Requirement: GS r transmit status
 
-When the printer processes GS r (`1d 72 n`), it SHALL reply with one byte computed from its current state: for n = 1 or 49 the byte SHALL report the roll paper near-end and paper-end sensor status, and for n = 2 or 50 it SHALL report the drawer kick-out connector status, in both cases with the bit layout defined by the Epson ESC/POS reference for GS r. GS r is not a real-time command: it SHALL be processed in order with the print data, so while a fault blocks printing its reply SHALL be sent only after the blocking faults are cleared and the data received before it has been processed.
+When the printer processes GS r (`1d 72 n`), it SHALL reply with one byte computed from its current state: for n = 1 or 49 the byte SHALL report the roll paper near-end and paper-end sensor status, and for n = 2 or 50 it SHALL report the drawer kick-out connector status, in both cases with the bit layout defined by the Epson ESC/POS reference for GS r. GS r is not a real-time command: it SHALL be processed in order with the print data, so while a fault blocks printing its reply SHALL be sent only after the blocking faults are cleared and the data received before it has been processed. The obsolete status requests ESC v (`1b 76`) and ESC u (`1b 75 n`) SHALL be processed the same way: ESC v SHALL be answered with the byte GS r 1 sends, and ESC u with n = 0 or 48 with the byte GS r 2 sends. ESC u with any other n SHALL get no reply and SHALL produce a `printer.command.unknown` event.
 
 #### Scenario: Paper sensor status follows paper state
 
@@ -141,9 +141,16 @@ When the printer processes GS r (`1d 72 n`), it SHALL reply with one byte comput
 - **THEN** the POS receives no reply while `cover-open` remains active
 - **AND** after `cover-open` is cleared the POS receives one reply byte
 
+#### Scenario: Obsolete status requests reply like GS r
+
+- **GIVEN** the `paper-near-end` fault is active and the drawer is open with drawer kick-out connector pin 3 high
+- **WHEN** the POS sends `1b 76 1b 75 00 1b 75 30 1b 75 01`
+- **THEN** the POS receives `03 01 01`
+- **AND** a `printer.command.unknown` event is emitted whose data contains the bytes `1b 75 01`
+
 ### Requirement: Supported print commands
 
-The printer SHALL process and render the following ESC/POS commands as defined by the Epson ESC/POS reference: initialise (ESC @, `1b 40`), which SHALL reset print settings to the profile defaults; printable text; line feed and paper feeds (LF `0a`, ESC d, ESC J) and line spacing (ESC 2, ESC 3); emphasis (ESC E) and underline (ESC -); font selection (ESC M); character size (GS !); justification (ESC a); cuts (GS V); print colour (ESC r), which SHALL NOT produce a `printer.command.unknown` event and, because the built-in profiles are single-colour, SHALL leave text black; the drawer kick (ESC p) with the effects defined by the cash-drawer capability; raster images (GS v 0); bit images (ESC *); barcodes (GS k); QR codes (GS ( k); horizontal tabs (HT `09`) with tab positions (ESC D); right-side character spacing (ESC SP); left margin (GS L) and print area width (GS W); absolute and relative print positions (ESC $, ESC \\); and buffered graphics (GS ( L and GS 8 L functions 112 store raster graphics data and 50 print it). Page mode (ESC L), NV graphics stored in non-volatile memory (the other GS ( L functions) and PDF417 symbols (GS ( k with cn = 48) SHALL NOT be rendered: each such command SHALL be consumed in full, using its declared length where it has one, SHALL produce a `printer.command.unknown` event, and SHALL leave the printer in standard mode so that following commands render normally.
+The printer SHALL process and render the following ESC/POS commands as defined by the Epson ESC/POS reference: initialise (ESC @, `1b 40`), which SHALL reset print settings to the profile defaults; printable text; line feed and paper feeds (LF `0a`, ESC d, ESC J) and line spacing (ESC 2, ESC 3); emphasis (ESC E) and underline (ESC -); font selection (ESC M); character size (GS !); justification (ESC a); cuts (GS V, and the obsolete partial cuts ESC i and ESC m); return to the beginning of the line (GS T), which SHALL be ignored at the beginning of a line and otherwise SHALL print the line like LF for n = 1 or 49 and discard it for n = 0 or 48; print colour (ESC r), which SHALL NOT produce a `printer.command.unknown` event and, because the built-in profiles are single-colour, SHALL leave text black; the drawer kick (ESC p) with the effects defined by the cash-drawer capability; raster images (GS v 0); bit images (ESC *); barcodes (GS k); QR codes (GS ( k); horizontal tabs (HT `09`) with tab positions (ESC D); right-side character spacing (ESC SP); left margin (GS L) and print area width (GS W); absolute and relative print positions (ESC $, ESC \\); and buffered graphics (GS ( L and GS 8 L functions 112 store raster graphics data and 50 print it). Page mode (ESC L), NV graphics stored in non-volatile memory (the other GS ( L functions) and PDF417 symbols (GS ( k with cn = 48) SHALL NOT be rendered: each such command SHALL be consumed in full, using its declared length where it has one, SHALL produce a `printer.command.unknown` event, and SHALL leave the printer in standard mode so that following commands render normally.
 
 #### Scenario: Initialise resets character size
 
@@ -174,6 +181,12 @@ The printer SHALL process and render the following ESC/POS commands as defined b
 - **WHEN** the POS sends `1b 4c 48 69 0a 1d 56 00`
 - **THEN** a `printer.command.unknown` event is emitted whose data contains the bytes `1b 4c`
 - **AND** the completed receipt contains the text `Hi` rendered in standard mode
+
+#### Scenario: GS T prints or discards the current line
+
+- **WHEN** the POS sends `1d 54 31 41 1d 54 31 42 1d 54 30 43 0a 1d 56 00`
+- **THEN** the completed receipt's text is `A` and `C` on two lines
+- **AND** no `printer.command.unknown` event is emitted
 
 #### Scenario: Print colour prints in black
 
@@ -281,12 +294,17 @@ The printer SHALL select a code page with ESC t (`1b 74 n`) by looking up n in t
 
 ### Requirement: Job boundaries
 
-The printer SHALL group the print data of each connection into jobs. A job SHALL end when a cut command (GS V) is processed, when the connection closes, or when no byte has been received on that connection for `job_idle_timeout_ms` milliseconds (2000 by default) after the last byte. Print data processed after a job ends SHALL start a new job. A job that contains no text, image, barcode or QR code (for example one holding only status queries, initialisation, feeds, cuts or drawer kicks) SHALL NOT produce a receipt or a `printer.job.completed` event.
+The printer SHALL group the print data of each connection into jobs. A job SHALL end when a cut command (GS V, ESC i or ESC m) is processed, when the connection closes, or when no byte has been received on that connection for `job_idle_timeout_ms` milliseconds (2000 by default) after the last byte. Print data processed after a job ends SHALL start a new job. A job that contains no text, image, barcode or QR code (for example one holding only status queries, initialisation, feeds, cuts or drawer kicks) SHALL NOT produce a receipt or a `printer.job.completed` event.
 
 #### Scenario: Cuts separate receipts on one connection
 
 - **WHEN** the POS sends `41 0a 1d 56 00 42 0a 1d 56 00` on one connection
 - **THEN** two receipts are completed in order, the first with text `A` and the second with text `B`
+
+#### Scenario: Partial cuts end the job
+
+- **WHEN** the POS sends `41 0a 1b 69 42 0a 1b 6d` on one connection
+- **THEN** two receipts are completed in order, the first with text `A` and the second with text `B`, each ended by a cut
 
 #### Scenario: Connection close ends the job
 
