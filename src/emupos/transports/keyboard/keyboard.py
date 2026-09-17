@@ -28,11 +28,23 @@ class Keyboard(Protocol):
         """
         ...
 
+    def start_scan(self, keys: Sequence[Key]) -> None:
+        """Get ready to type one scan's `keys`. Called before its first key."""
+        ...
+
+    async def prepare_key(self, key: Key) -> None:
+        """Wait until `key` can be pressed without changing what earlier keys type."""
+        ...
+
     def press(self, key: Key) -> bool:
         """Press and release one key (with Shift when the key says so).
 
         Returns False when the OS reported that it did not accept the key's events.
         """
+        ...
+
+    def end_scan(self) -> None:
+        """Undo what `start_scan` changed. Called after the last key, also when typing stops early."""
         ...
 
 
@@ -58,11 +70,17 @@ async def type_keys(keyboard: Keyboard, keys: Sequence[Key], inter_key_delay_ms:
     """
     loop = asyncio.get_running_loop()
     accepted = 0
-    next_start = loop.time()
-    for key in keys:
-        # A timer may fire up to the clock resolution early (about 16 ms on Windows): re-check.
-        while (remaining := next_start - loop.time()) > 0:
-            await asyncio.sleep(remaining)
-        accepted += keyboard.press(key)
-        next_start = loop.time() + inter_key_delay_ms / 1000  # counted from the end of the press
+    keyboard.start_scan(keys)
+    try:
+        next_start = loop.time()
+        for key in keys:
+            # A timer may fire up to the clock resolution early (about 16 ms on Windows): re-check.
+            while (remaining := next_start - loop.time()) > 0:
+                await asyncio.sleep(remaining)
+            await keyboard.prepare_key(key)
+            accepted += keyboard.press(key)
+            # Counted from the end of the press.
+            next_start = loop.time() + inter_key_delay_ms / 1000
+    finally:
+        keyboard.end_scan()
     return accepted

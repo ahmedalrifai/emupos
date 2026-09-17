@@ -45,7 +45,21 @@ A serial scanner writes each scan to a virtual serial port that the POS opens, w
 
 emupos presses keys by their physical position on a US keyboard, as a real scanner does. The active layout decides which characters appear: with an Arabic or AZERTY layout active, letter-bearing barcodes come out as that layout's characters, exactly as with real hardware.
 
-`emupos scan --unicode` (or `"unicode": true` in the API) types the exact characters instead. For each character emupos maps one unused key code to that character, the same technique `xdotool type` uses. That key code keeps the last character typed; no physical key uses it.
+`emupos scan --unicode` (or `"unicode": true` in the API) types the exact characters instead, as `xdotool type` does:
+
+- **Characters the active layout has** are typed with that layout's keys, with Shift where needed. An application sees those keys' positions, as with a real keyboard. For example, `ش` under an Arabic layout is typed with the A key.
+- **Other characters** get an unused key code that emupos maps to the character. No physical key uses these key codes, so an application sees no key position for them.
+
+Looking characters up in the layout needs the libxkbcommon library (`sudo apt install libxkbcommon0` on Debian and Ubuntu, `sudo dnf install libxkbcommon` on Fedora). GTK and Qt desktops already have it. Without it, every character uses an unused key code.
+
+Caps Lock does not change `--unicode` text: emupos turns it off for the scan and back on afterwards. Scans without `--unicode` follow Caps Lock, as a real scanner does.
+
+### Limits
+
+- **Different characters per scan.** Each different character the layout lacks keeps its own key code while emupos runs, so an application that is slow to handle the keys still reads the right characters. An X server has only a few unused key codes (19 on Xvfb), so a scan with more different missing characters must reuse some. For example, 28 different Arabic letters while a US layout is active; the same scan under an Arabic layout needs none.
+
+  Before reusing a key code, emupos waits until the focused application has read the keyboard map again. It sees this through the X server's RECORD extension, which Xorg and Xvfb enable by default. Without RECORD, or without a focused application, it waits until the key code's previous character was typed 2 seconds ago. A scan waits 2 seconds at most in total, so only an application more than 2 seconds behind can still read a wrong character. This was tested with a local X server; remote displays (`ssh -X`) were not.
+- **Stopping emupos.** emupos clears its key codes when it stops with Ctrl+C or SIGTERM. A killed emupos (`kill -9`, a crash) leaves them mapped until the next emupos opens the keyboard, at its first keyboard scan or in `emupos doctor`, and clears them. A key code that another program has changed in the meantime is left alone. To clear them without starting emupos, run `setxkbmap` with your usual layout (for example `setxkbmap us`).
 
 ## Headless machines
 
