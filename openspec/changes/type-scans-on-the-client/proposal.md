@@ -1,11 +1,13 @@
 ## Why
 
-Keyboard-mode scans are typed by the process that runs `emupos run`. That is the wrong process whenever emupos does not run on the machine that has the POS window:
+Keyboard-mode scans are typed by the process that runs `emupos run`. That process needs a desktop of its own, which it does not always have:
 
-- **emupos in a container.** On a macOS or Windows host, Docker runs a Linux VM: a container can never reach the host's window server, whatever flags it is given. On a Linux host it can, but only by bind-mounting `/tmp/.X11-unix`, passing `DISPLAY` and the `XAUTHORITY` cookie, matching the uid, and installing libXtst in the image.
-- **emupos on another machine**, with the POS and the operator somewhere else.
+- **emupos in a container**, the common case: `docker compose up` beside the POS, with the operator on the host. On a macOS or Windows host, Docker runs a Linux VM, so a container can never reach the host's window server, whatever flags it is given. On a Linux host it can, but only by bind-mounting `/tmp/.X11-unix`, passing `DISPLAY` and the `XAUTHORITY` cookie, matching the uid, and installing libXtst in the image.
+- **emupos over SSH or on a headless box**, where there is no display at all.
 
-In both cases every keyboard-mode scan is refused with `keyboard_unavailable`, and the only advice the error gives today is `mode: serial` — which a POS that reads its scanner as a keyboard wedge cannot use.
+Either way every keyboard-mode scan is refused with `keyboard_unavailable`, and the only advice the error gives today is `mode: serial` — which a POS that reads its scanner as a keyboard wedge cannot use.
+
+This is not about reaching emupos across a network: the control API stays loopback-bound and unauthenticated, and a container publishes its ports to `127.0.0.1`. It is about the keystrokes happening in the session that has the POS window, rather than in the one that runs the simulator.
 
 The split already exists in the code: `emupos scan` validates the data with the scanner's own rules, runs the countdown and checks keyboard focus, all locally, and then posts with `countdown_seconds: 0`. Only the keystrokes themselves are on the wrong side.
 
@@ -20,7 +22,7 @@ The split already exists in the code: `emupos scan` validates the data with the 
   - A report for a `typed_by: server` scanner is a 409, and vice versa.
 - **A client-typed scan expires.** If the client never reports back — its terminal was closed, the machine slept — the scanner would stay busy for the rest of the run and refuse every later scan with 409. A client-typed scan therefore carries a deadline of its typing time plus a grace period, after which the scanner is free again. Server-typed scans keep no deadline: `deliver_scan` is still in charge of them, and an expiring one would let two scans type at once.
 - **The keyboard prerequisite moves to whoever types.** For a `typed_by: client` scanner the server no longer calls `check_ready()`; `emupos scan` calls it locally before the countdown and reports the same message and fix, so a missing Accessibility permission or a Wayland session is refused on the machine it is actually about — and refused before the countdown rather than after it.
-- **`emupos scan` gains one branch.** For a `typed_by: client` scanner it checks the keyboard, counts down, checks focus (all unchanged and already local), posts the scan, types the returned plan with `type_keys`, posts the outcome, and then waits for `scanner.scan.delivered` as it does today, so the success line and the `scan_not_confirmed` error are unchanged. When the OS refused keystrokes, it says so instead of pointing at the `emupos run` output, which on another machine the operator may not be able to read.
+- **`emupos scan` gains one branch.** For a `typed_by: client` scanner it checks the keyboard, counts down, checks focus (all unchanged and already local), posts the scan, types the returned plan with `type_keys`, posts the outcome, and then waits for `scanner.scan.delivered` as it does today, so the success line and the `scan_not_confirmed` error are unchanged. When the OS refused keystrokes, it says so instead of pointing at the `emupos run` output, which for a container is `docker logs` rather than a terminal in front of the operator.
 - **`GET /devices/{id}` reports `typed_by`**, so the CLI can branch and `emupos devices` can show "keyboard mode, typed by the client".
 - **`emupos doctor`'s keyboard check follows `typed_by`.** A keyboard scanner the server does not type for no longer makes the check fail on the server's machine.
 - **The `keyboard_unavailable` fix text names `typed_by: client`** alongside `mode: serial`. That error is how a user in this situation finds the setting.

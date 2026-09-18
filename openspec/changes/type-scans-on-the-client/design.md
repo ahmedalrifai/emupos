@@ -14,7 +14,7 @@ A keyboard-mode scan is typed by the process that runs `emupos run`:
 - `_count_down` runs the countdown locally, and `terminal_with_focus()` cancels the scan if the operator never left the terminal;
 - it then posts with `countdown_seconds: 0`, so the server types at once.
 
-Only `type_keys` is on the server's side. When emupos runs in a container or on another machine, that is the one piece in the wrong place, and every keyboard scan is refused with `keyboard_unavailable`.
+Only `type_keys` is on the server's side. When emupos runs without a desktop of its own — in a container, or over SSH — that is the one piece in the wrong place, and every keyboard scan is refused with `keyboard_unavailable`.
 
 Three properties of the existing code shape this design:
 
@@ -108,7 +108,7 @@ The existing `KeyboardUnavailableError` carries `message` and `fix`, which map o
 
 After reporting, `emupos scan` waits for `scanner.scan.delivered` exactly as it does now, even though it already knows the outcome. The wait loop, the success line and the `scan_not_confirmed` error are then unchanged, and the event remains the single thing an automated test synchronises on.
 
-The one message that does change is the failure text: when the client typed, it knows that the OS refused keystrokes, so it says so instead of telling the operator to read an `emupos run` output that may be on another machine.
+The one message that does change is the failure text: when the client typed, it knows that the OS refused keystrokes, so it says so instead of telling the operator to read an `emupos run` output that may be a container's log.
 
 ### D9. The JSON form of a key
 
