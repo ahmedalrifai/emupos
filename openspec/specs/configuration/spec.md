@@ -3,9 +3,7 @@
 ## Purpose
 
 The YAML configuration file, device profiles, schema versioning and JSON Schema export.
-
 ## Requirements
-
 ### Requirement: Configuration file discovery
 
 `emupos run` SHALL read its configuration from the file given by `--config`, and otherwise from `emupos.yaml` in the current working directory. `emupos config validate` SHALL apply the same rule, using its `PATH` argument in place of `--config`. When no configuration file is found, the command SHALL exit with status 2 and a message naming the path it looked for and suggesting `emupos config init`. `emupos run --demo` SHALL read no file, and giving both `--demo` and `--config` SHALL be a usage error that exits with status 2.
@@ -111,7 +109,7 @@ A key that the schema does not define SHALL be a validation error at every level
 
 ### Requirement: Device definitions
 
-Each entry of `devices` SHALL have an `id` and a `type` of `printer`, `scale` or `scanner`. Device ids SHALL be unique and SHALL consist of lowercase ASCII letters, digits and hyphens, starting with a letter or digit. A `printer` or `scale` SHALL require a `profile` for its own device type and at least one connection. A `scanner` SHALL require `mode` `keyboard` or `serial`; a `serial` scanner SHALL require at least one connection, and a `keyboard` scanner SHALL NOT have connections. A scanner `suffix` SHALL be one of `enter`, `tab` or `none`, and `drawer.sensor_open_level` SHALL be `high` or `low`. The cash drawer SHALL NOT be declared as a device; it SHALL be configured through the `drawer` key of its printer.
+Each entry of `devices` SHALL have an `id` and a `type` of `printer`, `scale` or `scanner`. Device ids SHALL be unique and SHALL consist of lowercase ASCII letters, digits and hyphens, starting with a letter or digit. A `printer` or `scale` SHALL require a `profile` for its own device type and at least one connection. A `scanner` SHALL require `mode` `keyboard` or `serial`; a `serial` scanner SHALL require at least one connection, and a `keyboard` scanner SHALL NOT have connections. A scanner `suffix` SHALL be one of `enter`, `tab` or `none`, and `drawer.sensor_open_level` SHALL be `high` or `low`. A keyboard scanner MAY set `typed_by` to `server` or `client`, defaulting to `server`; `typed_by` on a `serial` scanner SHALL be rejected, because a serial scan presses no keys. The cash drawer SHALL NOT be declared as a device; it SHALL be configured through the `drawer` key of its printer.
 
 #### Scenario: Duplicate device id
 
@@ -136,6 +134,24 @@ Each entry of `devices` SHALL have an `id` and a `type` of `printer`, `scale` or
 - **GIVEN** device `lane1` has `mode: keyboard` and a `tcp` connection
 - **WHEN** the configuration is loaded
 - **THEN** validation fails with an error at the `connections` key of `lane1`
+
+#### Scenario: Client typing on a serial scanner
+
+- **GIVEN** device `lane2` has `mode: serial` and `typed_by: client`
+- **WHEN** the configuration is loaded
+- **THEN** validation fails with an error at the `typed_by` key of `lane2` stating that a serial scanner types no keys
+
+#### Scenario: Keyboard scanner defaults to server typing
+
+- **GIVEN** device `lane1` has `mode: keyboard` and no `typed_by`
+- **WHEN** the configuration is loaded
+- **THEN** its `typed_by` is `server`
+
+#### Scenario: Unknown typed_by value
+
+- **GIVEN** device `lane1` has `mode: keyboard` and `typed_by: cli`
+- **WHEN** the configuration is loaded
+- **THEN** validation fails with an error at the `typed_by` key of `lane1` naming `server` and `client`
 
 ### Requirement: Connection entries
 
@@ -277,3 +293,4 @@ Printers and scales SHALL take their hardware characteristics from a device prof
 
 - **WHEN** the user runs `emupos run --demo` on macOS
 - **THEN** `emupos devices` lists a printer, a scanner and a scale whose connection is a link under `$TMPDIR/emupos/`
+
