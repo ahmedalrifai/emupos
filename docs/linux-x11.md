@@ -2,6 +2,8 @@
 
 A scanner with `mode: keyboard` types each scan into the focused window, like a USB keyboard-wedge scanner. On Linux emupos does this through X11's XTest extension, using the `libXtst` library.
 
+**The display is needed on the machine that types.** With `typed_by: server` (the default) that is the machine running `emupos run`. With `typed_by: client` it is the machine running `emupos scan`, which is how a simulator in a container or on a headless machine still drives a keyboard-wedge scanner: it plans the keys and publishes the event, and the command presses them where your POS window is.
+
 **Wayland is not supported.** Wayland has no general way for one program to type into another program's windows. On a Wayland session emupos refuses keyboard scans (even though `DISPLAY` may be set for XWayland apps) and points you to serial mode. Serial scanners work on every session type.
 
 ## Check your session
@@ -12,7 +14,7 @@ echo $XDG_SESSION_TYPE
 
 - `x11`: keyboard mode works once libXtst is installed.
 - `wayland`: log out and pick an X11 session on the login screen if your desktop offers one (on Ubuntu, the gear icon → "Ubuntu on Xorg"). Otherwise use serial mode (below).
-- empty, with no `DISPLAY` either (SSH, containers, CI): there is no display to type into. Use serial mode, or run a virtual X server (see "Headless machines").
+- empty, with no `DISPLAY` either (SSH, containers, CI): there is no display to type into. Use serial mode, set `typed_by: client` and run `emupos scan` on the machine with the POS window, or run a virtual X server (see "Headless machines").
 
 Run emupos as the user logged in to the desktop. Under `sudo` or as a system service, `DISPLAY` and `XAUTHORITY` are usually missing and the X server refuses the connection.
 

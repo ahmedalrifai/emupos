@@ -50,6 +50,26 @@ SUFFIX_KEYS: dict[Suffix, PhysicalKey | None] = {
 }
 
 
+def key_to_json(key: Key) -> dict[str, object]:
+    """One key on the wire: a physical key, or one exact character (control-api spec)."""
+    if isinstance(key, PhysicalKey):
+        return {"usage": key.usage, "shift": key.shift}
+    return {"char": key.char}
+
+
+def key_from_json(value: object) -> Key:
+    """The key `key_to_json` wrote. Raises ValueError for anything else."""
+    match value:  # pyright: ignore[reportMatchNotExhaustive] -- anything unmatched is a ValueError
+        case {"char": str(char)} if len(char) == 1:
+            return UnicodeText(char)
+        # bool is an int: `"usage": true` is not a usage ID.
+        case {"usage": int(usage), "shift": bool(shift)} if (
+            not isinstance(usage, bool) and usage >= 0
+        ):
+            return PhysicalKey(usage, shift)
+    raise ValueError(f"not a key: {value!r}")
+
+
 def plan_keys(data: str, suffix: Suffix, unicode: bool) -> tuple[Key, ...]:
     """The keys for one scan: each character, then the suffix key.
 

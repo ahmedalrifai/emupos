@@ -4,6 +4,10 @@
 Pure (design D2): the daemon passes `now` (monotonic seconds), waits until `deliver_at`,
 writes `serial_bytes` or types `keys`, then reports back with `finished` or `failed`. In
 keyboard mode the daemon checks the OS keyboard is ready before calling `request`.
+
+With `typed_by: client` the client types `keys` on its own machine and reports back instead,
+so the scan carries `expires_at`: a client that never reports must not hold the scanner
+for the rest of the run.
 """
 
 import unicodedata
@@ -14,6 +18,12 @@ from emupos.events import NO_OUTPUT, Event, EventType, Output
 from emupos.scanner.keys import US_LAYOUT, Key, Suffix, plan_keys
 
 type Mode = Literal["keyboard", "serial"]
+type TypedBy = Literal["server", "client"]
+type ScanOutcome = Literal["delivered", "failed"]
+
+# How long after a client-typed scan was due to finish the scanner frees itself. `emupos scan`
+# gives up 10 s after that point, so the operator is always told first (design D4).
+CLIENT_TYPING_GRACE_S = 15.0
 
 SERIAL_SUFFIX: dict[Suffix, bytes] = {
     "enter": bytes.fromhex("0d"),
@@ -46,14 +56,23 @@ class AcceptedScan:
     deliver_at: float  # monotonic seconds; delivery starts no earlier
     serial_bytes: bytes  # serial mode: data as UTF-8 plus the suffix byte; b"" in keyboard mode
     keys: tuple[Key, ...]  # keyboard mode: each key then the suffix key; () in serial mode
+    expires_at: float | None  # client-typed: the scanner frees itself then; None when emupos types
 
 
 class Scanner:
-    def __init__(self, device_id: str, mode: Mode, suffix: Suffix, inter_key_delay_ms: int) -> None:
+    def __init__(
+        self,
+        device_id: str,
+        mode: Mode,
+        suffix: Suffix,
+        inter_key_delay_ms: int,
+        typed_by: TypedBy = "server",
+    ) -> None:
         self.device_id = device_id
         self.mode: Mode = mode
         self.suffix: Suffix = suffix
         self.inter_key_delay_ms = inter_key_delay_ms
+        self.typed_by: TypedBy = typed_by
         self._in_progress: AcceptedScan | None = None
         self._count = 0
 
@@ -61,10 +80,15 @@ class Scanner:
     def busy(self) -> bool:
         return self._in_progress is not None
 
+    @property
+    def in_progress(self) -> AcceptedScan | None:
+        """The scan being delivered, for the daemon's warnings. None when the scanner is free."""
+        return self._in_progress
+
     def request(self, data: str, countdown_seconds: int, unicode: bool, now: float) -> AcceptedScan:
         """Validate and accept a scan. Raises ScanRejectedError."""
         self._validate(data, countdown_seconds, unicode)
-        if self._in_progress is not None:
+        if self._in_progress is not None and not _expired(self._in_progress, now):
             raise ScanRejectedError(
                 "scan_in_progress",
                 f"a scan is already in progress on {self.device_id}",
@@ -73,14 +97,21 @@ class Scanner:
             )
         self._count += 1
         keyboard = self.mode == "keyboard"
+        keys = plan_keys(data, self.suffix, unicode) if keyboard else ()
+        deliver_at = now + countdown_seconds
         scan = AcceptedScan(
             id=f"{self.device_id}-{self._count}",
             data=data,
             mode=self.mode,
             unicode=unicode,
-            deliver_at=now + countdown_seconds,
+            deliver_at=deliver_at,
             serial_bytes=b"" if keyboard else data.encode("utf-8") + SERIAL_SUFFIX[self.suffix],
-            keys=plan_keys(data, self.suffix, unicode) if keyboard else (),
+            keys=keys,
+            expires_at=(
+                deliver_at + len(keys) * self.inter_key_delay_ms / 1000 + CLIENT_TYPING_GRACE_S
+                if keyboard and self.typed_by == "client"
+                else None
+            ),
         )
         self._in_progress = scan
         return scan
@@ -127,6 +158,11 @@ class Scanner:
                     f"`data` contains the control character U+{ord(char):04X}, which cannot be typed",
                     "remove it; the scanner's `suffix` setting adds Enter or Tab",
                 )
+
+
+def _expired(scan: AcceptedScan, now: float) -> bool:
+    """A client-typed scan whose report never came: the scanner is free again (design D4)."""
+    return scan.expires_at is not None and now >= scan.expires_at
 
 
 def _invalid(message: str, fix: str) -> ScanRejectedError:

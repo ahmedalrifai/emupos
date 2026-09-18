@@ -17,12 +17,12 @@ from typing import Any
 from emupos.config import LoadedConfig
 from emupos.daemon.connections import Connections
 from emupos.daemon.runtime import DeviceRuntime, StartupError, build_runtime
-from emupos.daemon.scans import deliver_scan
+from emupos.daemon.scans import deliver_scan, warn_scan_not_typed
 from emupos.events import Event, EventBus, EventType, Output, PublishedEvent
 from emupos.printer.printer import Printer, PrinterFault, PrinterOutput
 from emupos.printer.receipts import ReceiptStore
 from emupos.scale.scale import Scale
-from emupos.scanner.scanner import AcceptedScan, Scanner
+from emupos.scanner.scanner import AcceptedScan, Scanner, ScanOutcome
 from emupos.transports.errors import EndpointUnavailableError
 from emupos.transports.keyboard.keyboard import Keyboard, system_keyboard
 from emupos.transports.udp import serve_udp
@@ -135,18 +135,41 @@ class Simulator:
     def request_scan(
         self, scanner: Scanner, data: str, countdown_seconds: int, unicode: bool
     ) -> AcceptedScan:
-        """Accept a scan and deliver it in the background. Raises the scanner's rejection errors."""
+        """Accept a scan and deliver it in the background. Raises the scanner's rejection errors.
+
+        A client-typed scanner is only accepted and planned here: the client types the scan on
+        its own machine, so this machine's keyboard is neither checked nor used (design D1).
+        """
         keyboard: Keyboard | None = None
-        if scanner.mode == "keyboard":
+        client_typed = scanner.mode == "keyboard" and scanner.typed_by == "client"
+        if scanner.mode == "keyboard" and not client_typed:
             keyboard = self._keyboard or system_keyboard()
             keyboard.check_ready()  # may raise KeyboardUnavailableError
             self._keyboard = keyboard
         accepted = scanner.request(data, countdown_seconds, unicode, self.now())
-        runtime = self._runtimes[scanner.device_id]
-        self._spawn(
-            deliver_scan(runtime, scanner, accepted, keyboard, now=self.now, apply=self.apply)
-        )
+        if not client_typed:
+            runtime = self._runtimes[scanner.device_id]
+            self._spawn(
+                deliver_scan(runtime, scanner, accepted, keyboard, now=self.now, apply=self.apply)
+            )
         return accepted
+
+    def report_typed(
+        self,
+        scanner: Scanner,
+        scan_id: str,
+        outcome: ScanOutcome,
+        keys_accepted: int | None = None,
+        reason: str | None = None,
+    ) -> None:
+        """The client that typed a scan reports how it went. A stale `scan_id` does nothing."""
+        if outcome == "delivered":
+            self.apply(scanner.device_id, scanner.finished(scan_id))
+            return
+        scan = scanner.in_progress
+        if scan is not None and scan.id == scan_id:
+            warn_scan_not_typed(scanner.device_id, keys_accepted, len(scan.keys), reason)
+        scanner.failed(scan_id)
 
     # --- device output --------------------------------------------------------------------
 

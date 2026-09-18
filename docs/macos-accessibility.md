@@ -4,6 +4,8 @@ A scanner with `mode: keyboard` types each scan into the focused window, like a 
 
 Serial scanners (`mode: serial`) need no permission.
 
+**The permission is needed on the machine that types.** With `typed_by: server` (the default) that is the machine running `emupos run`. With `typed_by: client` it is the machine running `emupos scan`: the simulator neither checks nor needs Accessibility, and the command refuses the scan with this same message and fix when the permission is missing where you are.
+
 ## Which app to allow
 
 macOS gives the permission to the **app that started emupos**, not to emupos itself:
@@ -38,7 +40,7 @@ macOS ties the permission to the app's signature. After an app update, the switc
 
 - `emupos scan` exits with status 1 and prints the message and fix.
 - `POST /api/v1/devices/{id}/scans` returns status 409 with code `keyboard_unavailable`; `error.fix` names System Settings > Privacy & Security > Accessibility and the app to allow. Nothing is typed and no `scanner.scan.delivered` event is published.
-- `emupos doctor` marks the Accessibility check ✗ when the configuration has a keyboard scanner, and as a warning when it has none.
+- `emupos doctor` marks the Accessibility check ✗ when the configuration has a keyboard scanner this machine types (`typed_by: server`), and as a warning otherwise — including for a `typed_by: client` scanner, which is typed wherever `emupos scan` runs.
 
 ## Keyboard layout
 

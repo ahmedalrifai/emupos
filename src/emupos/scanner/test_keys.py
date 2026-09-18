@@ -1,6 +1,16 @@
+import json
+
 import pytest
 
-from emupos.scanner.keys import US_LAYOUT, PhysicalKey, UnicodeText, plan_keys
+from emupos.scanner.keys import (
+    US_LAYOUT,
+    Key,
+    PhysicalKey,
+    UnicodeText,
+    key_from_json,
+    key_to_json,
+    plan_keys,
+)
 
 ENTER, TAB = PhysicalKey(0x28), PhysicalKey(0x2B)
 
@@ -60,3 +70,36 @@ def test_unicode_characters_then_suffix_key() -> None:
 def test_non_ascii_without_unicode_raises() -> None:
     with pytest.raises(ValueError, match="US keyboard layout"):
         plan_keys("ك", "enter", unicode=False)
+
+
+@pytest.mark.parametrize(
+    "key",
+    [PhysicalKey(0x04), PhysicalKey(0x04, shift=True), ENTER, UnicodeText("ك"), UnicodeText("é")],
+)
+def test_key_json_round_trip(key: Key) -> None:
+    assert key_from_json(json.loads(json.dumps(key_to_json(key)))) == key
+
+
+def test_key_to_json_shape() -> None:
+    assert key_to_json(PhysicalKey(0x04, shift=True)) == {"usage": 4, "shift": True}
+    assert key_to_json(UnicodeText("é")) == {"char": "é"}
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        {},
+        {"usage": 4},  # no shift
+        {"usage": True, "shift": False},  # a bool is not a usage ID
+        {"usage": -1, "shift": False},
+        {"usage": "4", "shift": False},
+        {"char": ""},
+        {"char": "ab"},
+        {"char": 4},
+        "usage",
+        None,
+    ],
+)
+def test_key_from_json_refuses_malformed(value: object) -> None:
+    with pytest.raises(ValueError, match="not a key"):
+        key_from_json(value)

@@ -56,4 +56,5 @@ def _state(device: Printer | Scale | Scanner, now: float) -> dict[str, object]:
                 "mode": device.mode,
                 "suffix": device.suffix,
                 "inter_key_delay_ms": device.inter_key_delay_ms,
+                "typed_by": device.typed_by,
             }

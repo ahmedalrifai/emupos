@@ -63,6 +63,11 @@ def system_keyboard() -> Keyboard:
     return X11Keyboard()
 
 
+def type_keys_now(keyboard: Keyboard, keys: Sequence[Key], inter_key_delay_ms: int) -> int:
+    """`type_keys` for a caller with no event loop, such as `emupos scan` typing a client-typed scan."""
+    return asyncio.run(type_keys(keyboard, keys, inter_key_delay_ms))
+
+
 async def type_keys(keyboard: Keyboard, keys: Sequence[Key], inter_key_delay_ms: int) -> int:
     """Press `keys` in order, starting each at least `inter_key_delay_ms` after the previous one.
 
