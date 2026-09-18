@@ -19,3 +19,7 @@ This product includes font data derived from:
   Bitmap glyphs for receipt printer Fonts A and B (src/emupos/printer/escpos/fonts/).
   Copyright (c) 2018-2026, Frederic Cambus. Licensed under the BSD 2-Clause License;
   the full licence text is included at the top of each glyph table.
+
+- X.Org font-misc-misc (https://gitlab.freedesktop.org/xorg/font/misc-misc)
+  Bitmap glyphs for the characters Spleen lacks, Arabic above all, in the same tables.
+  "Public domain font. Share and enjoy."
