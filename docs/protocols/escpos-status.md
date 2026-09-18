@@ -240,7 +240,9 @@ The printer recognises a command by its bytes and consumes it completely, includ
 | `ESC p`, `DLE DC4 fn 1` | Opens the drawer |
 | `DLE EOT n` (n = 1–4), `GS r n` (n = 1, 2, 49, 50), `ESC v`, `ESC u n` (n = 0, 48), `GS a n` | Status replies, as described above |
 
-Only the PC437 code page has glyphs. Selecting another code page, or a number missing from the profile, publishes `printer.codepage.unsupported`, and bytes `80`–`ff` then print as a placeholder that fills one character cell. Bytes `20`–`7e` always print as ASCII. The receipt's text dump shows the real characters for code pages emupos has a character mapping for (PC720, PC864 and WPC1256 among them), and U+FFFD otherwise.
+The code pages the built-in profiles name have glyphs: PC437, PC850, PC852, PC858, PC860, PC863, PC865, PC866, WPC1252, PC720, PC864 and WPC1256. Selecting a number missing from the profile, or a code page emupos has no glyph table for, publishes `printer.codepage.unsupported`, and bytes `80`–`ff` then print as a placeholder that fills one character cell. A single byte without a glyph inside a code page that has a table prints the same placeholder, without an event. Bytes `20`–`7e` always print as ASCII. The receipt's text dump shows the real characters for code pages emupos has a character mapping for (PC720, PC864 and WPC1256 among them), and U+FFFD otherwise.
+
+Each byte is printed into the next character cell, in the order it arrives. Like a real ESC/POS printer, emupos does not reorder bytes and does not join Arabic letters: a POS shapes its Arabic and reverses it before sending, and what it sends is what the receipt shows.
 
 ### Consumed without any effect
 

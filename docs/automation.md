@@ -168,7 +168,7 @@ Connect a WebSocket to `ws://127.0.0.1:8765/api/v1/events`. Every event is one J
 | `printer.job.completed` | `receipt_id`, `boundary` |
 | `printer.status.changed` | `faults` (the faults active after the change) |
 | `printer.command.unknown` | `bytes` (spaced hex), and `command` when the command was recognised |
-| `printer.codepage.unsupported` | `number`, and `code_page` when the profile names it |
+| `printer.codepage.unsupported` | `number`, and `code_page` when the profile names it. Published for a number missing from the profile's code-page map, or a code page emupos has no glyph table for |
 | `drawer.opened` | `pin` (2 or 5), `on_time_ms` |
 | `drawer.closed` | — |
 | `scale.weight.changed` | `grams`, `tare_grams`, `net_grams`, `stable` |

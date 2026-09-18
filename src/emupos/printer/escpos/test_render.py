@@ -3,11 +3,19 @@
 import random
 import time
 
+import pytest
 import segno
 import zxingcpp
 from PIL import Image, ImageChops, ImageOps
 
 from emupos.events import EventType
+from emupos.printer.escpos.glyphs import (
+    GLYPH_CODE_PAGES,
+    FontName,
+    Style,
+    cell_image,
+    python_codec,
+)
 from emupos.printer.test_support import Pos, image_of, ink_box
 
 CUT = "1d 56 00"
@@ -406,34 +414,91 @@ def test_unsupported_symbology() -> None:
 # --- Code page selection ----------------------------------------------------------------------
 
 
+ALEF = "\N{ARABIC LETTER ALEF ISOLATED FORM}"
+
+# Characters neither bundled font has, so they print the placeholder: the bytes PC720
+# maps to C1 controls, the zero-width and direction marks, and WPC1256's Urdu letters in Font B.
+FONT_A_GAPS = {0x80, 0x81, 0x84, 0x86, 0x8D, 0x8E, 0x8F, 0x90, 0x200C, 0x200D, 0x200E, 0x200F}
+FONT_B_GAPS = (FONT_A_GAPS - {0x200C, 0x200D}) | {
+    0x679,
+    0x688,
+    0x691,
+    0x698,
+    0x6BA,
+    0x6BE,
+    0x6C1,
+    0x6D2,
+}
+
+
+def cell(character: str | None, font: FontName = "A") -> bytes:
+    """The dots of one character cell, or of the placeholder when `character` is None."""
+    return cell_image(font, (12, 24) if font == "A" else (9, 17), character, Style()).tobytes()
+
+
+def cells(image: Image.Image, count: int, font: FontName = "A") -> list[bytes]:
+    """The dots of the first `count` character cells of a line."""
+    width, height = (12, 24) if font == "A" else (9, 17)
+    return [image.crop((i * width, 0, (i + 1) * width, height)).tobytes() for i in range(count)]
+
+
 def test_arabic_code_page_on_an_epson_profile() -> None:
     pos, image = render("1b 40 1b 74 25 54 4f 54 41 4c c7 0a 1d 56 00")
 
-    [event] = pos.events_of(EventType.PRINTER_CODEPAGE_UNSUPPORTED)
-    assert event.data == {"number": 37, "code_page": "PC864"}
-    placeholder = ink_box(image.crop((60, 0, 72, 24)))
-    assert placeholder is not None
-    assert placeholder[2] - placeholder[0] >= 10  # fills its 12 x 24 cell
-    assert placeholder[3] - placeholder[1] >= 22
+    assert pos.events_of(EventType.PRINTER_CODEPAGE_UNSUPPORTED) == []
+    assert cells(image, 6) == [cell(character) for character in "TOTAL" + ALEF]
     assert ink_box(image.crop((72, 0, 576, 24))) is None
-    assert pos.texts == ["TOTAL\N{ARABIC LETTER ALEF ISOLATED FORM}\n"]
+    assert pos.texts == ["TOTAL" + ALEF + "\n"]
+
+
+def test_latin_and_arabic_stay_in_the_order_received() -> None:
+    # "4.75 المجموع", shaped and reversed by the POS, as a printer receives it.
+    data = bytes.fromhex("34 2e 37 35 20 df e8 e5 cc e5 e4 c7".replace(" ", ""))
+    pos, image = render(b"\x1b\x40\x1b\x74\x25" + data + b"\n\x1d\x56\x00")
+
+    characters = data.decode("cp864")
+    assert cells(image, len(data)) == [cell(character) for character in characters]
+    assert pos.texts == [characters + "\n"]
 
 
 def test_same_code_page_under_a_different_number() -> None:
     pos = Pos("rongta-rp326")
 
-    pos.send("1b 74 16")
+    pos.send("1b 74 16 c7 0a 1d 56 00")
 
-    [event] = pos.events_of(EventType.PRINTER_CODEPAGE_UNSUPPORTED)
-    assert event.data == {"number": 22, "code_page": "PC864"}
+    assert pos.events_of(EventType.PRINTER_CODEPAGE_UNSUPPORTED) == []
+    assert cells(image_of(pos.receipts[0]), 1) == [cell(ALEF)]
+
+
+def test_byte_without_a_glyph_in_a_code_page_that_has_a_table() -> None:
+    pos, image = render("1b 40 1b 74 25 ff 0a 1d 56 00")  # ff is undefined in PC864
+
+    assert pos.events_of(EventType.PRINTER_CODEPAGE_UNSUPPORTED) == []
+    assert cells(image, 1) == [cell(None)]
+    assert pos.texts == ["\N{REPLACEMENT CHARACTER}\n"]
 
 
 def test_number_missing_from_the_profile_map() -> None:
-    pos, _ = render("1b 74 63 41 c7 0a 1d 56 00")
+    pos, image = render("1b 74 63 41 c7 0a 1d 56 00")
 
     [event] = pos.events_of(EventType.PRINTER_CODEPAGE_UNSUPPORTED)
     assert event.data == {"number": 99}
     assert pos.texts == ["A\N{REPLACEMENT CHARACTER}\n"]
+    assert cells(image, 2) == [cell("A"), cell(None)]
+
+
+@pytest.mark.parametrize("code_page", sorted(GLYPH_CODE_PAGES))
+def test_every_byte_of_a_listed_code_page_has_a_glyph(code_page: str) -> None:
+    codec = python_codec(code_page)
+    assert codec is not None
+    for byte in range(0x80, 0x100):
+        character = bytes([byte]).decode(codec, errors="replace")
+        if character == "\N{REPLACEMENT CHARACTER}":
+            continue  # a byte this code page leaves undefined
+        fonts: list[tuple[FontName, set[int]]] = [("A", FONT_A_GAPS), ("B", FONT_B_GAPS)]
+        for font, gaps in fonts:
+            drawn = cell(character, font) != cell(None, font)
+            assert drawn == (ord(character) not in gaps), f"{code_page} {byte:02x} in font {font}"
 
 
 def test_default_code_page_has_glyphs() -> None:

@@ -15,4 +15,5 @@ Commands in the input (count):
 - text (1)
 
 Observed: the encoder selects PC864 as `1b 74 25` (37, Epson numbering) but sent `3f` (`?`)
-for every Arabic letter, so this capture exercises the unsupported code page event only.
+for every Arabic letter, so no Arabic reaches the printer. The receipt shows what the POS sent,
+question marks included; PC864 itself has glyphs, which `handwritten/code-page-pc864` covers.
