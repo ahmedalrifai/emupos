@@ -186,7 +186,17 @@ class ScannerDevice(_StrictModel):
     mode: Literal["keyboard", "serial"]
     suffix: Literal["enter", "tab", "none"] = "enter"
     inter_key_delay_ms: Annotated[int, Field(ge=0)] = 10
+    typed_by: Literal["server", "client"] = "server"
     connections: list[Connection] = []
+
+    @field_validator("typed_by")
+    @classmethod
+    def _typed_by_needs_keyboard(cls, value: str, info: ValidationInfo) -> str:
+        if info.data.get("mode") == "serial":
+            raise ValueError(
+                "a serial scanner writes bytes and types no keys, so it has no `typed_by`"
+            )
+        return value
 
     @field_validator("connections")
     @classmethod

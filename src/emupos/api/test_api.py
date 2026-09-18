@@ -20,6 +20,8 @@ from emupos.daemon.simulator import Simulator
 from emupos.events import PublishedEvent
 from emupos.printer.printer import Printer
 from emupos.scale.scale import Scale
+from emupos.scanner.scanner import Scanner
+from emupos.transports.keyboard.keyboard import KeyboardUnavailableError
 
 POSIX = sys.platform != "win32"
 BASE_URL = "http://127.0.0.1:8765"
@@ -44,6 +46,7 @@ schema: 1
 api: {{ port: {api_port} }}
 devices:
   - {{ id: front, type: printer, profile: epson-tm-t20iii, connections: [ {{ tcp: {{ port: {printer_port} }} }} ], job_idle_timeout_ms: 200 }}
+  - {{ id: lane1, type: scanner, mode: keyboard, typed_by: client }}
 {serial_devices if POSIX else ""}
 """
     return parse_config(text, "test.yaml", tmp_path, sys.platform)
@@ -437,3 +440,164 @@ devices:
         os.close(slave)
 
     assert reply == bytes.fromhex("02 30 31 2e 32 35 30 0d")
+
+
+# --- client-typed scans (barcode-scanner "Client-typed scans") -------------------------------
+
+
+async def scan_plan(api: httpx.AsyncClient, **body: object) -> httpx.Response:
+    return await api.post("/api/v1/devices/lane1/scans", json={"countdown_seconds": 0, **body})
+
+
+async def test_client_typed_scan_returns_the_key_plan(api: httpx.AsyncClient) -> None:
+    # No keyboard is touched on this machine: on a headless runner this would be a 409 otherwise.
+    accepted = await scan_plan(api, data="Ab1")
+
+    assert accepted.status_code == 200
+    body = accepted.json()
+    assert body["typed_by"] == "client"
+    assert body["inter_key_delay_ms"] == 10
+    assert body["keys"] == [
+        {"usage": 4, "shift": True},
+        {"usage": 5, "shift": False},
+        {"usage": 30, "shift": False},
+        {"usage": 40, "shift": False},
+    ]
+    assert body["deliver_at"].endswith("Z")
+
+
+async def test_client_typed_unicode_scan_returns_characters(api: httpx.AsyncClient) -> None:
+    body = (await scan_plan(api, data="كو", unicode=True)).json()
+
+    assert body["keys"] == [{"char": "ك"}, {"char": "و"}, {"usage": 40, "shift": False}]
+
+
+async def test_client_typed_scan_holds_the_scanner_until_reported(
+    api: httpx.AsyncClient, simulator: Simulator
+) -> None:
+    events: list[PublishedEvent] = []
+    simulator.bus.subscribe(events.append)
+
+    accepted = await scan_plan(api, data="123")
+    busy = await scan_plan(api, data="456")
+    reported = await api.post(
+        f"/api/v1/devices/lane1/scans/{accepted.json()['id']}/typed",
+        json={"outcome": "delivered"},
+    )
+    again = await scan_plan(api, data="456")
+
+    assert busy.status_code == 409
+    assert busy.json()["error"]["code"] == "scan_in_progress"
+    assert reported.status_code == 204
+    assert again.status_code == 200
+    delivered = [e for e in events if e.event.type == "scanner.scan.delivered"]
+    assert len(delivered) == 1
+    assert delivered[0].event.data == {
+        "id": accepted.json()["id"],
+        "data": "123",
+        "mode": "keyboard",
+    }
+
+
+async def test_failed_report_frees_the_scanner_without_an_event(
+    api: httpx.AsyncClient, simulator: Simulator
+) -> None:
+    events: list[PublishedEvent] = []
+    simulator.bus.subscribe(events.append)
+    accepted = await scan_plan(api, data="1234567")
+
+    reported = await api.post(
+        f"/api/v1/devices/lane1/scans/{accepted.json()['id']}/typed",
+        json={"outcome": "failed", "keys_accepted": 3, "reason": "the window went away"},
+    )
+
+    assert reported.status_code == 204
+    assert not [e for e in events if e.event.type == "scanner.scan.delivered"]
+    assert (await scan_plan(api, data="456")).status_code == 200
+
+
+async def test_stale_report_does_nothing(api: httpx.AsyncClient, simulator: Simulator) -> None:
+    events: list[PublishedEvent] = []
+    simulator.bus.subscribe(events.append)
+
+    stale = await api.post(
+        "/api/v1/devices/lane1/scans/lane1-99/typed", json={"outcome": "delivered"}
+    )
+
+    assert stale.status_code == 204
+    assert not events
+
+
+@pytest.mark.skipif(not POSIX, reason="the serial scanner needs a simulator-created serial port")
+async def test_report_for_a_server_typed_scanner_is_refused(api: httpx.AsyncClient) -> None:
+    refused = await api.post(
+        "/api/v1/devices/lane2/scans/lane2-1/typed", json={"outcome": "delivered"}
+    )
+
+    assert refused.status_code == 409
+    assert refused.json()["error"]["code"] == "typed_by_mismatch"
+
+
+async def test_report_on_a_printer_is_the_wrong_device_type(api: httpx.AsyncClient) -> None:
+    refused = await api.post(
+        "/api/v1/devices/front/scans/front-1/typed", json={"outcome": "delivered"}
+    )
+
+    assert refused.status_code == 409
+    assert refused.json()["error"]["code"] == "wrong_device_type"
+
+
+async def test_invalid_data_is_refused_before_a_plan(api: httpx.AsyncClient) -> None:
+    refused = await scan_plan(api, data="كود42")
+
+    assert refused.status_code == 422
+    assert "unicode" in refused.json()["error"]["fix"]
+
+
+async def test_scanner_state_reports_who_types(api: httpx.AsyncClient) -> None:
+    lane1 = (await api.get("/api/v1/devices/lane1")).json()
+
+    assert lane1["state"]["typed_by"] == "client"
+    assert lane1["state"]["mode"] == "keyboard"
+
+
+async def test_keyboard_unavailable_fix_names_client_typing(
+    api: httpx.AsyncClient, simulator: Simulator, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The 409 a machine without a desktop returns is how a user finds `typed_by`."""
+
+    class NoKeyboard:
+        def check_ready(self) -> None:
+            raise KeyboardUnavailableError(
+                "keystrokes cannot be typed: no X11 display (DISPLAY is not set)",
+                "log in to an X11 session, or set `mode: serial` for this scanner",
+            )
+
+    monkeypatch.setattr("emupos.daemon.simulator.system_keyboard", NoKeyboard)
+    scanner = simulator.runtime("lane1").device
+    assert isinstance(scanner, Scanner)
+    monkeypatch.setattr(scanner, "typed_by", "server")
+
+    refused = await scan_plan(api, data="123")
+
+    assert refused.status_code == 409
+    error = refused.json()["error"]
+    assert error["code"] == "keyboard_unavailable"
+    assert "mode: serial" in error["fix"]
+    assert "typed_by: client" in error["fix"]
+
+
+@pytest.mark.skipif(not POSIX, reason="the serial scanner needs a simulator-created serial port")
+async def test_server_typed_scan_answers_exactly_as_before(api: httpx.AsyncClient) -> None:
+    """A scanner without `typed_by` must be indistinguishable from one before this feature."""
+    accepted = await api.post(
+        "/api/v1/devices/lane2/scans", json={"data": "123", "countdown_seconds": 0}
+    )
+
+    assert accepted.status_code == 202
+    body = accepted.json()
+    assert body["typed_by"] == "server"
+    assert body["deliver_at"].endswith("Z")
+    assert body["keys"] is None
+    assert body["inter_key_delay_ms"] is None
+    assert (await api.get("/api/v1/devices/lane2")).json()["state"]["typed_by"] == "server"

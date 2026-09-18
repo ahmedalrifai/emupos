@@ -134,9 +134,15 @@ def _running_tcp_endpoints(api: ApiSettings) -> set[str] | None:
 
 
 def check_keyboard(loaded: LoadedConfig | None) -> Check:
-    """macOS Accessibility, or X11 and libXtst on Linux: a failure only when a keyboard scanner is configured."""
+    """macOS Accessibility, or X11 and libXtst on Linux: a failure only when this machine types.
+
+    A `typed_by: client` scanner is typed wherever `emupos scan` runs, so a machine that only
+    runs the simulator does not need a keyboard for it: a warning, not a failure.
+    """
     needed = loaded is not None and any(
-        isinstance(device, ScannerDevice) and device.mode == "keyboard"
+        isinstance(device, ScannerDevice)
+        and device.mode == "keyboard"
+        and device.typed_by == "server"
         for device in loaded.config.devices
     )
     try:

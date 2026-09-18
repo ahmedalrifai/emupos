@@ -92,6 +92,7 @@ Every device has:
 | `mode` | yes | — | `keyboard`: types scans into the focused window like a USB keyboard-wedge scanner (setup: [macOS](macos-accessibility.md), [Linux](linux-x11.md)). `serial`: writes scans to its connections. |
 | `suffix` | no | `enter` | Sent after each scan: `enter`, `tab` or `none`. |
 | `inter_key_delay_ms` | no | `10` | Delay between keystrokes in keyboard mode. |
+| `typed_by` | keyboard mode only | `server` | Which machine presses the keys. `server`: the machine running `emupos run`. `client`: the machine running `emupos scan`, for a simulator in a container or on another machine — it still validates the scan, plans the keys and publishes the event. |
 | `connections` | serial mode only | — | A keyboard scanner must not have connections; a serial scanner needs at least one. Serial scanners expect 9600 baud, 8 data bits, no parity, 1 stop bit. |
 
 ## Connections

@@ -53,5 +53,7 @@ def build_runtime(config: DeviceConfig, loaded: LoadedConfig) -> DeviceRuntime:
         case ScaleDevice():
             return DeviceRuntime(config, Scale(config.id, loaded.scale_profile(config.id)))
         case ScannerDevice():
-            scanner = Scanner(config.id, config.mode, config.suffix, config.inter_key_delay_ms)
+            scanner = Scanner(
+                config.id, config.mode, config.suffix, config.inter_key_delay_ms, config.typed_by
+            )
             return DeviceRuntime(config, scanner)

@@ -2,13 +2,24 @@ import pytest
 
 from emupos.events import NO_OUTPUT, Event, EventType, Output
 from emupos.scanner.keys import PhysicalKey, Suffix, UnicodeText
-from emupos.scanner.scanner import Mode, Scanner, ScanRejectedError
+from emupos.scanner.scanner import (
+    CLIENT_TYPING_GRACE_S,
+    Mode,
+    Scanner,
+    ScanRejectedError,
+    TypedBy,
+)
 
 ENTER, TAB = PhysicalKey(0x28), PhysicalKey(0x2B)
 
 
-def scanner(mode: Mode = "keyboard", suffix: Suffix = "enter", device_id: str = "lane1") -> Scanner:
-    return Scanner(device_id, mode, suffix, inter_key_delay_ms=10)
+def scanner(
+    mode: Mode = "keyboard",
+    suffix: Suffix = "enter",
+    device_id: str = "lane1",
+    typed_by: TypedBy = "server",
+) -> Scanner:
+    return Scanner(device_id, mode, suffix, inter_key_delay_ms=10, typed_by=typed_by)
 
 
 def rejection(
@@ -230,3 +241,66 @@ def test_serial_event_mode() -> None:
         "data": "123",
         "mode": "serial",
     }
+
+
+# Client-typed scans
+
+
+def test_client_typed_scan_plans_keys_and_stays_busy() -> None:
+    lane1 = scanner(typed_by="client")
+
+    scan = lane1.request("Ab1", countdown_seconds=0, unicode=False, now=100.0)
+
+    assert scan.keys == (PhysicalKey(0x04, shift=True), PhysicalKey(0x05), PhysicalKey(0x1E), ENTER)
+    assert lane1.busy
+    assert rejection(lane1, "222").code == "scan_in_progress"
+
+
+def test_client_typed_report_frees_the_scanner_and_emits_one_event() -> None:
+    lane1 = scanner(typed_by="client")
+    scan = lane1.request("123", countdown_seconds=0, unicode=False, now=100.0)
+
+    output = lane1.finished(scan.id)
+
+    assert len(output.events) == 1
+    assert output.events[0].type == EventType.SCANNER_SCAN_DELIVERED
+    assert lane1.finished(scan.id) is NO_OUTPUT  # a repeated report does nothing
+    assert lane1.request("456", countdown_seconds=0, unicode=False, now=100.0).id == "lane1-2"
+
+
+def test_client_typed_scan_expires_when_no_report_arrives() -> None:
+    lane1 = scanner(typed_by="client")
+    # 4 keys at 10 ms, so typing is due to finish at 100.04.
+    scan = lane1.request("123", countdown_seconds=0, unicode=False, now=100.0)
+
+    expires_at = scan.expires_at
+    assert expires_at is not None
+    assert expires_at == 100.0 + 4 * 0.01 + CLIENT_TYPING_GRACE_S
+    with pytest.raises(ScanRejectedError):
+        lane1.request("456", countdown_seconds=0, unicode=False, now=expires_at - 0.001)
+    assert lane1.request("456", countdown_seconds=0, unicode=False, now=expires_at).id == "lane1-2"
+
+
+def test_expiry_counts_from_the_end_of_the_countdown() -> None:
+    scan = scanner(typed_by="client").request("1", countdown_seconds=5, unicode=False, now=100.0)
+
+    assert scan.expires_at == 105.0 + 2 * 0.01 + CLIENT_TYPING_GRACE_S
+
+
+@pytest.mark.parametrize("mode", ["keyboard", "serial"])
+def test_server_typed_scan_never_expires(mode: Mode) -> None:
+    lane1 = scanner(mode=mode, device_id="lane")
+    scan = lane1.request("123", countdown_seconds=0, unicode=False, now=100.0)
+
+    assert scan.expires_at is None
+    with pytest.raises(ScanRejectedError):
+        lane1.request("456", countdown_seconds=0, unicode=False, now=1_000_000.0)
+
+
+def test_client_typed_serial_scanner_types_no_keys() -> None:
+    # The configuration refuses this pairing; the scanner still must not invent keys for it.
+    scan = scanner(mode="serial", typed_by="client").request(
+        "123", countdown_seconds=0, unicode=False, now=100.0
+    )
+
+    assert (scan.keys, scan.expires_at) == ((), None)

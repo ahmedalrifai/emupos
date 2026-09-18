@@ -3,19 +3,22 @@
 import contextlib
 import math
 import time
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import typer
 from rich.console import Console
 from rich.status import Status
 from rich.text import Text
 
-from emupos.cli.client import DeviceOption, api, device_path, pick_device
+from emupos.cli.client import Client, DeviceOption, api, device_path, pick_device
 from emupos.cli.output import CliError, console, kilograms
 from emupos.printer.printer import PrinterFault
 from emupos.scale.weights import parse_weight
 from emupos.scanner.scanner import Scanner, ScanRejectedError
 from emupos.transports.keyboard.focus import terminal_with_focus
+
+if TYPE_CHECKING:
+    from emupos.transports.keyboard.keyboard import Keyboard
 
 WEIGHT_FORMS = "a number with the unit kg or g, e.g. 1.25kg or 1250g"
 CONFIRM_SECONDS = 10  # cli spec: wait this long after typing was due to finish
@@ -61,7 +64,9 @@ def scan(
     scanner = pick_device(client, "scanner", device)
     state = client.get(device_path(scanner))["state"]
     keyboard = state.get("mode") == "keyboard"
-    _check_scan(scanner, state, data, countdown, unicode)
+    _check_scan(scanner, state, data, countdown, unicode)  # invalid data first, as before
+    # `typed_by: client`: the simulator plans the keys, this machine presses them (design D7).
+    typist = _local_keyboard() if keyboard and state.get("typed_by") == "client" else None
     out = console()
     with client.events() as receive:  # subscribed before the request, so no delivery is missed
         if keyboard:
@@ -80,6 +85,8 @@ def scan(
             "unicode": unicode,
         }
         accepted = client.post(device_path(scanner, "scans"), body)
+        if typist is not None:
+            _type_and_report(client, scanner, typist, accepted)
         deliver_at = time.monotonic() + remote_countdown
         typing_seconds = state.get("inter_key_delay_ms", 0) * (len(data) + 1) / 1000
         deadline = deliver_at + typing_seconds + CONFIRM_SECONDS
@@ -102,6 +109,42 @@ def scan(
         "check the `emupos run` output for a warning about this scan",
         code="scan_not_confirmed",
     )
+
+
+def _local_keyboard() -> "Keyboard":
+    """This machine's keyboard, checked before any countdown so a refusal comes at once."""
+    # Imported here: only a client-typed scan needs the operating system's keyboard.
+    from emupos.transports.keyboard.keyboard import KeyboardUnavailableError, system_keyboard
+
+    keyboard = system_keyboard()
+    try:
+        keyboard.check_ready()
+    except KeyboardUnavailableError as error:
+        raise CliError(error.message, error.fix, code="keyboard_unavailable") from None
+    return keyboard
+
+
+def _type_and_report(client: Client, scanner: str, keyboard: "Keyboard", accepted: Any) -> None:
+    """Press the simulator's key plan on this machine, then tell it how that went."""
+    from emupos.scanner.keys import key_from_json
+    from emupos.transports.keyboard.keyboard import type_keys_now
+
+    keys = [key_from_json(key) for key in accepted["keys"]]
+    pressed = type_keys_now(keyboard, keys, accepted["inter_key_delay_ms"])
+    report: dict[str, object] = (
+        {"outcome": "delivered"}
+        if pressed == len(keys)
+        else {"outcome": "failed", "keys_accepted": pressed}
+    )
+    client.post(device_path(scanner, "scans", accepted["id"], "typed"), report)
+    if pressed < len(keys):
+        raise CliError(
+            f"the operating system accepted {pressed} of {len(keys)} keystrokes, so the scan "
+            "was not delivered",
+            "on Windows, keystrokes do not reach a window running with higher privileges: run "
+            "this command and your POS at the same privilege level",
+            code="scan_not_typed",
+        )
 
 
 def _check_scan(

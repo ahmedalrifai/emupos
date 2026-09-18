@@ -8,6 +8,7 @@ from emupos.config import (
     ConfigError,
     ConfigNotFoundError,
     PrinterDevice,
+    ScannerDevice,
     demo_config,
     find_config_file,
     json_schema,
@@ -163,6 +164,26 @@ def test_keyboard_scanner_with_connections() -> None:
     text = "schema: 1\ndevices: [ { id: lane1, type: scanner, mode: keyboard, connections: [ { tcp: { port: 4000 } } ] } ]\n"
 
     assert "devices[0].connections" in issues_of(text)
+
+
+def test_client_typing_on_a_serial_scanner() -> None:
+    text = "schema: 1\ndevices: [ { id: lane2, type: scanner, mode: serial, typed_by: client, connections: [ { serial: { pty: true } } ] } ]\n"
+
+    assert "types no keys" in issues_of(text)["devices[0].typed_by"]
+
+
+def test_unknown_typed_by_value() -> None:
+    text = "schema: 1\ndevices: [ { id: lane1, type: scanner, mode: keyboard, typed_by: cli } ]\n"
+
+    assert "'server' or 'client'" in issues_of(text)["devices[0].typed_by"]
+
+
+def test_keyboard_scanner_defaults_to_server_typing() -> None:
+    loaded = parse("schema: 1\ndevices: [ { id: lane1, type: scanner, mode: keyboard } ]\n")
+    lane1 = loaded.config.devices[0]
+
+    assert isinstance(lane1, ScannerDevice)
+    assert lane1.typed_by == "server"
 
 
 def test_connection_with_both_kinds() -> None:

@@ -160,6 +160,35 @@
         "title": "Health",
         "type": "object"
       },
+      "KeyOut": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/PhysicalKeyOut"
+          },
+          {
+            "$ref": "#/components/schemas/UnicodeTextOut"
+          }
+        ]
+      },
+      "PhysicalKeyOut": {
+        "description": "A key by position: its HID usage ID on page 0x07, and whether Shift is held.",
+        "properties": {
+          "shift": {
+            "title": "Shift",
+            "type": "boolean"
+          },
+          "usage": {
+            "title": "Usage",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "usage",
+          "shift"
+        ],
+        "title": "PhysicalKeyOut",
+        "type": "object"
+      },
       "ReceiptInfo": {
         "properties": {
           "boundary": {
@@ -207,6 +236,40 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "inter_key_delay_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inter Key Delay Ms"
+          },
+          "keys": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/KeyOut"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keys"
+          },
+          "typed_by": {
+            "default": "server",
+            "enum": [
+              "server",
+              "client"
+            ],
+            "title": "Typed By",
+            "type": "string"
           }
         },
         "required": [
@@ -238,6 +301,60 @@
           "data"
         ],
         "title": "ScanRequest",
+        "type": "object"
+      },
+      "ScanTypedReport": {
+        "additionalProperties": false,
+        "properties": {
+          "keys_accepted": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keys Accepted"
+          },
+          "outcome": {
+            "enum": [
+              "delivered",
+              "failed"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "outcome"
+        ],
+        "title": "ScanTypedReport",
+        "type": "object"
+      },
+      "UnicodeTextOut": {
+        "description": "One character, typed exactly whatever the active keyboard layout.",
+        "properties": {
+          "char": {
+            "title": "Char",
+            "type": "string"
+          }
+        },
+        "required": [
+          "char"
+        ],
+        "title": "UnicodeTextOut",
         "type": "object"
       },
       "WeighedBarcode": {
@@ -317,7 +434,7 @@
   },
   "info": {
     "title": "emupos control API",
-    "version": "0.0.0"
+    "version": "0.2.0"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -1312,6 +1429,108 @@
           }
         },
         "summary": "Request Scan"
+      }
+    },
+    "/api/v1/devices/{device_id}/scans/{scan_id}/typed": {
+      "post": {
+        "description": "How the client's typing went. A scan id that is not the one in progress does nothing.",
+        "operationId": "report_typed_api_v1_devices__device_id__scans__scan_id__typed_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scan_id",
+            "required": true,
+            "schema": {
+              "title": "Scan Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanTypedReport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "summary": "Report Typed"
       }
     },
     "/api/v1/devices/{device_id}/tare": {

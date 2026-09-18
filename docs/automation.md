@@ -24,7 +24,7 @@ A CI machine cannot put tomatoes on a scale or open a printer's cover. With emup
 
 ## Start emupos in CI
 
-Give CI its own configuration. A keyboard-mode scanner types into the focused window, which a CI machine does not have, so use a serial scanner there:
+Give CI its own configuration. A keyboard-mode scanner types into the focused window, which a CI machine does not have, so use a serial scanner there (see [Who types a keyboard scan](#who-types-a-keyboard-scan) if you cannot):
 
 ```yaml
 # ci.yaml
@@ -92,7 +92,8 @@ All paths start with `/api/v1`. Request bodies are JSON and need `Content-Type: 
 | `PUT` | `/devices/{id}/weight` | `{"grams": 1250, "stable": true}` | 204 | Scale: set the gross weight; `stable` is optional (default `true`) |
 | `POST` | `/devices/{id}/zero` | — | 204 | Scale: zero (weight 0 g, tare cleared) |
 | `POST` | `/devices/{id}/tare` | — | 204 | Scale: the current weight becomes the tare |
-| `POST` | `/devices/{id}/scans` | `{"data": "2112345012506", "countdown_seconds": 3, "unicode": false}` | 202 | Scanner: scan `data` after the countdown; returns `{"id", "deliver_at"}` |
+| `POST` | `/devices/{id}/scans` | `{"data": "2112345012506", "countdown_seconds": 3, "unicode": false}` | 202 | Scanner: scan `data` after the countdown; returns `{"id", "typed_by", "deliver_at"}`. A `typed_by: client` scanner answers **200** and adds `keys` and `inter_key_delay_ms` for you to type — see [Who types a keyboard scan](#who-types-a-keyboard-scan) |
+| `POST` | `/devices/{id}/scans/{scan_id}/typed` | `{"outcome": "delivered"}` or `{"outcome": "failed", "keys_accepted": 7}` | 204 | Scanner: report how your typing of a `typed_by: client` scan went. A scan id that is no longer in progress does nothing |
 | `POST` | `/barcodes/weighed` | `{"layout": "21IIIIIWWWWWC", "item": 12345, "grams": 1250}` | 200 | Weighed-item EAN-13 digits: `{"digits": "2112345012506"}`; `price_minor` instead of `grams` for price layouts; needs no device |
 | `WS` | `/events` | — | — | Event stream, see [Events](#events) |
 
@@ -150,6 +151,26 @@ PUT /api/v1/devices/deli/weight  {"grams": 1.25}
 PUT /api/v1/devices/front/weight  {"grams": 1250}
 409 {"error":{"code":"wrong_device_type","message":"`front` is a printer and this operation needs a scale","fix":null}}
 ```
+
+## Who types a keyboard scan
+
+A `mode: keyboard` scanner presses keys on a real keyboard, so someone has to be at a keyboard. The scanner's `typed_by` setting says who:
+
+| `typed_by` | Who presses the keys | `POST /devices/{id}/scans` answers |
+|---|---|---|
+| `server` (default) | the machine running `emupos run` | **202** with `{"id", "typed_by": "server", "deliver_at"}`, and emupos types the scan for you |
+| `client` | whoever posted the scan | **200** with `{"id", "typed_by": "client", "deliver_at", "inter_key_delay_ms", "keys"}` — **you** type those keys, then report back |
+
+**The trap:** a script written against a `typed_by: server` scanner still gets a 2xx from a `typed_by: client` one, but nothing is ever typed and no `scanner.scan.delivered` event arrives, so the script waits until it times out. Branch on `typed_by` in the response, or keep your scripts on `mode: serial`, which needs no keyboard at all and is what CI should use.
+
+Each entry of `keys` is either a physical key, `{"usage": 30, "shift": false}` — the HID usage ID on page `0x07`, as a USB scanner sends, with the active keyboard layout deciding which character appears — or one exact character, `{"char": "é"}`. Leave at least `inter_key_delay_ms` between keystrokes. When you are done:
+
+```sh
+curl -sf -X POST -H 'Content-Type: application/json' -d '{"outcome": "delivered"}' \
+  $API/devices/lane1/scans/lane1-3/typed
+```
+
+That publishes the scan's `scanner.scan.delivered` event, exactly as an emupos-typed scan does. If the operating system refused some keystrokes, send `{"outcome": "failed", "keys_accepted": 7}` instead: the scanner is freed without an event, and `emupos run` logs the same warning it logs for its own refused keystrokes. Report either way — a scan nobody reports keeps the scanner busy until it expires.
 
 ## Events
 

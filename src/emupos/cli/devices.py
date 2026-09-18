@@ -51,7 +51,10 @@ def state_text(device: dict[str, Any]) -> str:
                 )
             return text
         case "scanner":
-            return f"{state['mode']} mode, suffix {state['suffix']}, {state['inter_key_delay_ms']} ms between keys"
+            text = f"{state['mode']} mode, suffix {state['suffix']}, {state['inter_key_delay_ms']} ms between keys"
+            if state.get("typed_by") == "client":
+                text += ", typed by the client"
+            return text
         case _:
             return ""
 
