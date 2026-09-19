@@ -22,5 +22,5 @@
 
 ## 4. Before the first release (the maintainer's, not this change's)
 
-- [ ] 4.1 Create the Docker Hub repository and issue a scoped access token; store `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` as repository secrets (design D6, open question).
-- [ ] 4.2 Run the workflow once against a test tag or a scratch repository to prove the push path before a real release depends on it.
+- [x] 4.1 Create the Docker Hub repository and issue a scoped access token; store `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` as secrets of a `dockerhub` environment with required reviewers, mirroring `pypi` (design D6, open question). Done: the image is `ahmedalrifai/emupos`, public, so no `DOCKERHUB_IMAGE` variable is needed.
+- [x] 4.2 Prove the push path before a real release depends on it. Done by hand rather than with a test tag, because a tag would run the whole release including the PyPI publish: `docker login`, then `docker push ahmedalrifai/emupos:0.0.0-test` from the locally built image. The tag is readable anonymously on Docker Hub (69 MB, arm64), which proves the repository, the token's write scope and the push path. The multi-architecture buildx step is the only part the release exercises first.
