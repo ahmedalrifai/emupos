@@ -4,7 +4,9 @@
 
 The repository SHALL contain a `Dockerfile` that builds an image whose default command starts `emupos run`. The image SHALL install the same wheel the release workflow built and smoke-tested, SHALL run as a non-root user, and SHALL NOT contain X11 libraries, because a container does not type keystrokes.
 
-The image SHALL set its working directory to `/emupos` and SHALL contain a `/emupos/emupos.yaml` that is usable in a container without editing: the control API and every device connection bound to `0.0.0.0`, every device reachable over TCP, no pseudo-terminal serial ports, and every keyboard scanner set to `typed_by: client`. Mounting a file over `/emupos/emupos.yaml` SHALL be sufficient to use a different configuration, with no environment variable and no command-line argument.
+The image SHALL set its working directory to `/emupos` and SHALL contain a `/emupos/emupos.yaml` that is usable in a container without editing: the control API and every device connection bound to `0.0.0.0`, and every keyboard scanner set to `typed_by: client`. Mounting a file over `/emupos/emupos.yaml` SHALL be sufficient to use a different configuration, with no environment variable and no command-line argument.
+
+The bundled configuration SHALL contain only devices whose wiring inside a container is the wiring of the real hardware, and SHALL NOT substitute TCP for a device that speaks a serial protocol, because a POS testing against such a stand-in would exercise none of its serial code. A pseudo-terminal created inside a container cannot be opened from the host, so the documentation SHALL state that serial devices need emupos running on the host.
 
 #### Scenario: Starts with no arguments
 
@@ -21,6 +23,12 @@ The image SHALL set its working directory to `/emupos` and SHALL contain a `/emu
 - **GIVEN** a valid configuration file on the host
 - **WHEN** the image is run with that file mounted at `/emupos/emupos.yaml`
 - **THEN** the simulator starts that file's devices
+
+#### Scenario: No serial stand-in
+
+- **WHEN** the bundled configuration is read
+- **THEN** it defines no device whose real hardware speaks a serial protocol
+- **AND** the documentation states that serial devices need emupos on the host
 
 #### Scenario: No X11 libraries
 

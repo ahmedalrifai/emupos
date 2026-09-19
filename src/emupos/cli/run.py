@@ -70,7 +70,11 @@ def _started(out: Console, simulator: "Simulator", demo: bool) -> None:
         device = runtime.config
         if isinstance(device, ScannerDevice):
             profile = f"{device.mode} mode"
-            fallback = "types into the focused window"
+            fallback = (
+                "typed by whoever runs `emupos scan`"
+                if device.typed_by == "client"
+                else "types into the focused window"
+            )
         else:
             profile, fallback = device.profile, "-"
         endpoints = "\n".join(_endpoint_text(endpoint) for endpoint in runtime.endpoints)
