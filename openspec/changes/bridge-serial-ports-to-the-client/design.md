@@ -88,6 +88,7 @@ class SerialFramingOut(BaseModel):
     parity: Literal["none", "even", "odd"]
     stop_bits: int
 
+
 class DeviceInfo(BaseModel):
     ...
     serial_framing: SerialFramingOut | None = None
@@ -115,7 +116,9 @@ The same split as `typed_by: client`, in the direction it actually runs: the OS-
 **The watcher splits into an async generator.** `transports/framing.py`:
 
 ```python
-async def observed_framing_changes(fd: int, interval: float = 0.2) -> AsyncIterator[ObservedFraming]:
+async def observed_framing_changes(
+    fd: int, interval: float = 0.2
+) -> AsyncIterator[ObservedFraming]:
     """Yield the framing on `fd` each time it changes. Cancel this before closing `fd`."""
     last: ObservedFraming | None = None
     while True:
@@ -235,8 +238,11 @@ So the primary mechanism is application-level, on the channel the bridge already
 ```python
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 idle = getattr(socket, "TCP_KEEPIDLE", None) or getattr(socket, "TCP_KEEPALIVE", None)
-for option, value in ((idle, 5), (getattr(socket, "TCP_KEEPINTVL", None), 2),
-                      (getattr(socket, "TCP_KEEPCNT", None), 3)):
+for option, value in (
+    (idle, 5),
+    (getattr(socket, "TCP_KEEPINTVL", None), 2),
+    (getattr(socket, "TCP_KEEPCNT", None), 3),
+):
     if option is not None:
         sock.setsockopt(socket.IPPROTO_TCP, option, value)
 ```
