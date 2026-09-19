@@ -121,7 +121,10 @@ type Profile = PrinterProfile | ScaleProfile
 # ---------------------------------------------------------------------------------------------
 # Configuration file
 
-DeviceId = Annotated[str, Field(pattern=r"^[a-z0-9][a-z0-9-]*$")]
+# A device id ends up in a receipt file name and in a Windows print queue name, so the shape is
+# checked wherever an id arrives from outside a configuration file too (cli/client.py).
+DEVICE_ID_PATTERN = r"^[a-z0-9][a-z0-9-]*$"
+DeviceId = Annotated[str, Field(pattern=DEVICE_ID_PATTERN)]
 LinkName = Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$")]
 
 

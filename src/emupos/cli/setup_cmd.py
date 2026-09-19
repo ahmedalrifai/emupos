@@ -42,8 +42,9 @@ def print_queue(
     out = console()
     try:
         if remove:
-            # With --device, removing needs no running simulator.
-            printer = device if device is not None else pick_device(api(ctx), "printer", None)
+            # With --device, `pick_device` returns it without asking the API: removing needs no
+            # running simulator.
+            printer = pick_device(api(ctx), "printer", device)
             outcome = remove_queue(printer)
             summary = (
                 f"removed print queue {queue_name(printer)} and its port"

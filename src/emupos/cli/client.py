@@ -7,6 +7,7 @@ environment: the API is a local service.
 import contextlib
 import http.client
 import json
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -16,6 +17,7 @@ from typing import Annotated, Any
 import typer
 
 from emupos.cli.output import CliError
+from emupos.config import DEVICE_ID_PATTERN
 
 DEFAULT_API = "http://127.0.0.1:8765"
 TIMEOUT_SECONDS = 10
@@ -117,10 +119,10 @@ def device_path(device_id: str, *rest: str) -> str:
 def pick_device(client: Client, kind: str, device_id: str | None) -> str:
     """The device given with --device, or the only running device of `kind` (cli spec, "Device selection")."""
     if device_id is not None:
-        return device_id
+        return _valid_device_id(device_id)
     candidates = [device["id"] for device in client.get("/devices") if device["type"] == kind]
     if len(candidates) == 1:
-        return candidates[0]
+        return _valid_device_id(candidates[0])
     if not candidates:
         raise CliError(
             f"the running simulator has no {kind}",
@@ -134,6 +136,23 @@ def pick_device(client: Client, kind: str, device_id: str | None) -> str:
         code="ambiguous_device",
         exit_code=2,
     )
+
+
+def _valid_device_id(value: str) -> str:
+    """`value` when it has the shape of a device id (configuration capability), or a usage error.
+
+    Ids arrive from the command line and from the API named by --api, which can be any server, and
+    an id becomes a Windows print queue name, so one of another shape is refused before it is used.
+    """
+    if re.fullmatch(DEVICE_ID_PATTERN, value) is None:
+        raise CliError(
+            f"`{value}` is not a device id",
+            "device ids are lowercase letters, digits and hyphens, as in `front`; "
+            "`emupos devices` lists the ids of the running simulator",
+            code="invalid_device",
+            exit_code=2,
+        )
+    return value
 
 
 def _api_error(error: urllib.error.HTTPError) -> ApiRequestError:

@@ -168,6 +168,21 @@ def test_negative_countdown_is_a_usage_error() -> None:
     assert result.exit_code == 2
 
 
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["receipt", "list"],
+        ["scan", "123"],
+        ["scale", "zero"],
+        ["drawer", "close"],
+    ],
+)
+def test_a_device_that_is_not_an_id_is_a_usage_error(command: list[str]) -> None:
+    result = runner.invoke(app, ["--api", unused_api(), *command, "--device", "Front Desk"])
+    assert result.exit_code == 2  # not 3: the simulator was never contacted
+    assert "is not a device id" in words(result.stderr)
+
+
 def test_unknown_command_is_a_usage_error() -> None:
     assert runner.invoke(app, ["printers"]).exit_code == 2
 
