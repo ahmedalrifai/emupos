@@ -27,6 +27,9 @@ FRONT: dict[str, Any] = {
     "type": "printer",
     "connections": [{"kind": "tcp", "endpoint": "127.0.0.1:9100"}],
 }
+# An id holding U+2019, which Windows PowerShell reads as a single quote: it would end the quoted
+# queue name in the script this command builds (test_setup.py covers the other quote characters).
+PWNED_ID = f"front{chr(0x2019)}; Write-Output pwned; {chr(0x2019)}"
 
 
 @pytest.fixture
@@ -98,6 +101,34 @@ def test_remove_with_device_needs_no_simulator(
     assert result.exit_code == 0, result.output
     assert "removed print queue emupos-front" in result.stdout
     assert "Remove-Printer -Name $Name" in windows[0]
+
+
+def test_remove_with_an_id_that_is_not_a_device_id_is_a_usage_error(
+    windows: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def unreachable(client: Client, path: str) -> Any:
+        raise SimulatorUnreachableError(client.base_url)
+
+    monkeypatch.setattr(Client, "get", unreachable)
+
+    result = runner.invoke(app, ["setup", "print-queue", "--remove", "--device", PWNED_ID])
+
+    assert result.exit_code == 2  # not 3: the value is refused before the simulator is needed
+    assert "is not a device id" in result.stderr
+    assert windows == []
+
+
+def test_an_api_that_answers_with_an_id_that_is_not_a_device_id_is_refused(
+    windows: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # --api can name any server, so the ids it answers with are checked like a typed one.
+    api_answers(monkeypatch, FRONT | {"id": PWNED_ID})
+
+    result = runner.invoke(app, ["setup", "print-queue"])
+
+    assert result.exit_code == 2
+    assert "is not a device id" in result.stderr
+    assert windows == []
 
 
 def test_nothing_to_remove(monkeypatch: pytest.MonkeyPatch, windows: list[str]) -> None:

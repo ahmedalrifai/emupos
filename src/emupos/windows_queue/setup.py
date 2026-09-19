@@ -9,16 +9,31 @@ where `error_id` carries the HRESULT, e.g. `HRESULT 0x80070005,Add-PrinterPort`.
 """
 
 import json
+import re
 import subprocess
 from base64 import b64encode
 from dataclasses import dataclass, field
 from typing import Any
+
+from emupos.config import DEVICE_ID_PATTERN
 
 DRIVER = "Generic / Text Only"
 POWERSHELL_TIMEOUT_SECONDS = 120  # a Print Spooler restart can take a while
 
 
 def queue_name(device_id: str) -> str:
+    """The queue name of a printer. Raises QueueSetupError when `device_id` is not a device id.
+
+    Every script this module runs carries the name in a single-quoted PowerShell string, and Windows
+    PowerShell reads U+2018 to U+201B as single quotes as well as `'`, so an id of another shape
+    could end that string and have the rest of the id run as PowerShell. Checked here because both
+    `create_queue` and `remove_queue` pass through this function.
+    """
+    if re.fullmatch(DEVICE_ID_PATTERN, device_id) is None:
+        raise QueueSetupError(
+            f"`{device_id}` is not a device id",
+            "device ids are lowercase letters, digits and hyphens, as in `front`",
+        )
     return f"emupos-{device_id}"
 
 
