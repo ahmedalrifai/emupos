@@ -1,5 +1,7 @@
 # emupos
 
+[![Documentation](https://app.readthedocs.org/projects/emupos/badge/?version=latest)](https://emupos.readthedocs.io/en/latest/)
+
 emupos simulates point-of-sale hardware — a receipt printer with its cash drawer, a weight scale and a barcode scanner — at the wire-protocol level, so your POS talks to it exactly as it talks to real devices.
 
 It runs on Windows, macOS and Linux, on a laptop or in CI. **Full documentation: [emupos.readthedocs.io](https://emupos.readthedocs.io/).**
