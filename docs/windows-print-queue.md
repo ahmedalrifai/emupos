@@ -2,7 +2,7 @@
 
 Some POS applications print to a Windows printer by name instead of to an IP address. `emupos setup print-queue` creates a Windows print queue that sends every job to a simulated printer, so those applications can print to emupos.
 
-A print queue is **one-way**: see [Status replies](#status-replies-do-not-come-back). Connect the POS to the printer's TCP port directly whenever you can.
+On Windows the receipt printer and its cash drawer work over TCP, including status replies and faults. A print queue is **one-way**: see [Status replies](#status-replies-do-not-come-back). Connect the POS to the printer's TCP port directly whenever you can.
 
 ## Create the queue
 

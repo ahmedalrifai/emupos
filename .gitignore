@@ -17,6 +17,9 @@ htmlcov/
 receipts/
 /emupos.yaml
 
+# Documentation site build output
+/site/
+
 # Editors and OS
 .idea/
 .vscode/

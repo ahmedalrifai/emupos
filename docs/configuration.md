@@ -112,9 +112,9 @@ Exactly one of `pty` or `port`:
 
 | Key | Meaning |
 |---|---|
-| `pty: true` | **macOS and Linux.** emupos creates the serial port itself and publishes it as a link, by default `$TMPDIR/emupos/<device id>` (or `/tmp/emupos/<device id>`). Point your POS at that path. Not available on Windows. |
+| `pty: true` | **macOS and Linux.** emupos creates the serial port itself, with no driver to install, and publishes it as a link, by default `$TMPDIR/emupos/<device id>` (or `/tmp/emupos/<device id>`). Point your POS at that path. Not available on Windows. |
 | `link` | Only with `pty: true`: the link name, if you want something other than the device id. Links must be unique and must not end in `.pid`. A link belongs to the running `emupos run` that published it; another simulator using the same name refuses to start. |
-| `port` | An existing serial port: a device path on macOS or Linux, such as `/dev/ttyUSB0` or one end of a `tty0tty` pair, or a COM port name on Windows, such as `COM5` ([windows-serial.md](windows-serial.md)). On Linux your user needs access to it (usually the `dialout` group). |
+| `port` | An existing serial port: a device path on macOS or Linux, such as `/dev/ttyUSB0`, a USB serial adapter looped to another machine, or one end of a `tty0tty` pair, or a COM port name on Windows, such as `COM5` ([windows-serial.md](windows-serial.md)). On Linux your user needs access to it (usually the `dialout` group). |
 
 Serial framing (baud rate, data bits, parity, stop bits) comes from the device profile. emupos warns when your POS opens the port with different settings, where the operating system lets it see them.
 
@@ -129,7 +129,7 @@ A profile describes a device model. Built-in profiles:
 | `rongta-rp326` | printer | 80 mm, 576 dots, PC720 = 27, PC864 = 22, WPC1256 = 34 |
 | `toledo8217-15kg` | scale | Toledo 8217 protocol, 15 kg × 5 g, 9600 baud 7E1 |
 
-To use your own, set `profile` to a path (any value containing `/` or ending in `.yaml`). Relative paths are resolved from the folder that contains `emupos.yaml`. Start from a copy of a built-in profile in [`src/emupos/profiles/`](../src/emupos/profiles/).
+To use your own, set `profile` to a path (any value containing `/` or ending in `.yaml`). Relative paths are resolved from the folder that contains `emupos.yaml`. Start from a copy of a built-in profile in [`src/emupos/profiles/`](https://github.com/ahmedalrifai/emupos/tree/main/src/emupos/profiles).
 
 ### Printer profile keys
 
