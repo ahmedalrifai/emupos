@@ -47,7 +47,7 @@ devices:
       - serial: { pty: true }   # macOS and Linux only
 ```
 
-On Windows only the printer's TCP connection is available today; see the [hard limits](../README.md#hard-limits).
+On Windows only the printer's TCP connection is available today; see the [hard limits](limits.md).
 
 With docker compose, beside the POS under test — TCP everywhere, and a serial scanner because CI has nobody to type a client-typed scan:
 
@@ -88,7 +88,7 @@ The health check answers:
 
 `emupos run` exits with status 1 and a message naming the port if a port is already taken, so a failed start shows up in `emupos.log`.
 
-The serial links are `$TMPDIR/emupos/<device id>`, or `/tmp/emupos/<device id>` when `TMPDIR` is not set. `GET /api/v1/devices` returns them as `connections[].link_path`, so a test can hand the exact path to your POS configuration. Run one simulator per link name: a second `emupos run` that publishes the same link name takes the link over.
+The serial links are `$TMPDIR/emupos/<device id>`, or `/tmp/emupos/<device id>` when `TMPDIR` is not set. `GET /api/v1/devices` returns them as `connections[].link_path`, so a test can hand the exact path to your POS configuration. Run one simulator per link name: a second `emupos run` that publishes the same link name refuses to start while the first one holds it, naming the process that does.
 
 ## Endpoints
 
@@ -510,4 +510,4 @@ The control API has no authentication and can type keystrokes when a keyboard-mo
 - While the API is on a loopback address, a `Host` header other than `127.0.0.1`, `localhost` or `[::1]` gets 403 `invalid_host`. This blocks DNS rebinding.
 - A request body that is not `application/json` gets 415 `unsupported_media_type`. This blocks HTML form posts.
 
-This is also why a browser-based POS cannot call the API — and, as above, it never should: a POS reaches devices only through their real protocols. See [SECURITY.md](../SECURITY.md) for the threat model.
+This is also why a browser-based POS cannot call the API — and, as above, it never should: a POS reaches devices only through their real protocols. See [SECURITY.md](https://github.com/ahmedalrifai/emupos/blob/main/SECURITY.md) for the threat model.

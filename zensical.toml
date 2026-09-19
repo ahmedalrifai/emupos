@@ -1,0 +1,47 @@
+# The documentation site built from docs/ and published at https://emupos.readthedocs.io/.
+# Preview it with `uv run --group docs zensical serve`.
+
+[project]
+site_name = "emupos"
+site_description = "Simulate POS hardware (receipt printers, cash drawers, scales, barcode scanners) at the wire-protocol level."
+site_url = "https://emupos.readthedocs.io/"
+repo_url = "https://github.com/ahmedalrifai/emupos"
+docs_dir = "docs"
+
+# Every page in docs/, in the order docs/README.md lists them. The recorded API contract
+# (api/openapi-v1.json) is not a page; the reference section links to it.
+nav = [
+  { "Home" = "README.md" },
+  { "Getting started" = [
+    "installation.md",
+    "quickstart.md",
+    "configuration.md",
+  ] },
+  { "Guides" = [
+    "automation.md",
+    "docker.md",
+    "moving-to-real-hardware.md",
+    "limits.md",
+  ] },
+  # Grouped by operating system: the page titles carry the OS, the nav says it once.
+  { "Setting up your operating system" = [
+    { "macOS" = "macos-accessibility.md" },
+    { "Linux" = "linux-x11.md" },
+    { "Windows" = [
+      { "Keyboard scans" = "windows-keyboard.md" },
+      { "Serial devices" = "windows-serial.md" },
+      { "Print queue" = "windows-print-queue.md" },
+    ] },
+  ] },
+  { "Reference" = [
+    "cli.md",
+    "protocols/escpos-status.md",
+    "protocols/toledo8217.md",
+  ] },
+  { "Maintainer notes" = [
+    { "Keyboard scanning checklist" = "keyboard-scanning-checklist.md" },
+    { "Spike: keyboard wedge" = "spikes/keyboard-wedge.md" },
+    { "Spike: Windows serial" = "spikes/windows-serial.md" },
+    { "Spike: Windows SNMP" = "spikes/windows-snmp.md" },
+  ] },
+]

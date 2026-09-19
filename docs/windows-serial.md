@@ -10,7 +10,7 @@ emupos cannot create serial ports on Windows. A serial device there (a scale, a 
       - serial: { port: COM5 }   # emupos opens COM5, the POS opens COM6
 ```
 
-`serial: { pty: true }` is not available on Windows; the configuration is rejected with a pointer to this page.
+`serial: { pty: true }` is not available on Windows; the configuration is rejected with a pointer to this page. For the same reason `emupos run --demo` leaves the scale out on Windows.
 
 ## Getting a pair of COM ports
 

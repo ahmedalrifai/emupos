@@ -42,6 +42,7 @@ emupos = "emupos.cli.app:main"
 Homepage = "https://github.com/ahmedalrifai/emupos"
 Issues = "https://github.com/ahmedalrifai/emupos/issues"
 Changelog = "https://github.com/ahmedalrifai/emupos/blob/main/CHANGELOG.md"
+Documentation = "https://emupos.readthedocs.io/"
 
 [dependency-groups]
 dev = [
@@ -57,6 +58,9 @@ dev = [
     "types-pyyaml>=6.0.12",
     "zxing-cpp>=3.1",
 ]
+docs = [
+    "zensical>=0.0.63",
+]
 
 [build-system]
 requires = ["hatchling>=1.32"]
@@ -67,7 +71,7 @@ packages = ["src/emupos"]
 exclude = ["**/test_*.py", "**/conftest.py", "**/cases/**", "**/dialogues/**", "**/__snapshots__/**"]
 
 [tool.hatch.build.targets.sdist]
-exclude = ["/.github", "/.claude", "/openspec", "/spikes", "/release-please-config.json", "/.release-please-manifest.json"]
+exclude = ["/.github", "/.claude", "/openspec", "/spikes", "/release-please-config.json", "/.release-please-manifest.json", "/.readthedocs.yaml", "/zensical.toml"]
 
 [tool.ruff]
 line-length = 100

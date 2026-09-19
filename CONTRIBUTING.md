@@ -132,6 +132,16 @@ uv run python scripts/check_api_compat.py --update   # then record the new contr
 
 The API check fails when an endpoint or field is removed, a field changes type, or a request field becomes required. Those changes need a new `/api/v2` instead.
 
+## Documentation
+
+The guides in `docs/` are published at <https://emupos.readthedocs.io/>. Preview the site while you edit:
+
+```sh
+uv run --group docs zensical serve
+```
+
+Read the Docs builds every pull request, and the build fails on a link to a page or an anchor that does not exist. Links to files outside `docs/`, such as `README.md` or `SECURITY.md`, are written as full GitHub URLs, because the site only contains `docs/`.
+
 ## Pull requests
 
 Pull requests are squash-merged, and the title becomes the commit message that drives the version number and changelog. Use [Conventional Commits](https://www.conventionalcommits.org/):
