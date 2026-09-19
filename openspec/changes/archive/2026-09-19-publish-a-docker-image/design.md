@@ -50,6 +50,47 @@ docker run -p 127.0.0.1:9100:9100 -p 127.0.0.1:8765:8765 …
 
 The bundled configuration uses TCP for every device and no `pty: true`, because a pty and its link do not cross the container boundary.
 
+### D3a. No serial device in the bundled configuration
+
+A pseudo-terminal created inside a container is allocated from that container's own devpts
+instance. Mounting the link directory out to the host shows the symlink but not the device:
+
+```
+container:  serial /tmp/emupos/deli -> /dev/pts/0
+host:       deli -> /dev/pts/0
+host open:  FileNotFoundError: '/tmp/emupos/deli'
+```
+
+On macOS and Windows the container's `/dev/pts` belongs to Docker's Linux VM. On Linux the container
+normally gets its own devpts instance; whether `-v /dev/pts:/dev/pts` defeats that is contested —
+one investigation reproduced a working exchange through it, another found runc refuses the mount —
+so it is recorded here as unresolved and not relied on.
+
+The limit is narrower than "a container cannot present a serial port": **the pseudo-terminal has to
+live where the POS can open it.** A relay running next to the POS — on the host, inside the POS's
+own container, or as a sidecar — creates the port and carries the bytes, verified end to end: a
+second container ran `socat PTY,link=/dev/ttyScale,raw tcp:emupos-svc:9200` and a POS in that
+container opened the node, got `isatty` true, ran `tcsetattr` for 9600 7E1 and read back
+`\x02 02.455 \r` from the emupos service. That is the `bridge-serial-ports-to-the-client` change,
+and it is why this one says "not bundled" rather than "impossible".
+
+The first draft bundled a Toledo 8217 scale on TCP 9200 instead. The protocol works — `W` returns
+`\x02 01.250 \r` through a published port. The reason to refuse it is narrower, and worth stating
+accurately: a POS reaching that port through a relay *does* open a real tty and *does* run
+`tcsetattr`. What it loses is emupos's observation of the result. `watch_framing` is spawned only
+from `Connections._open_pty` (`connections.py:96`); `_open_tcp` never observes framing, and with a
+third-party relay holding the pseudo-terminal nothing on either side reads its termios. A POS
+deliberately set to 19200 8N1 against a 9600 7E1 scale gets a clean, valid weight and no warning —
+verified. A developer would reasonably read a working `deli` in `emupos devices` as "my scale
+integration is covered", and emupos's one diagnostic for the commonest serial mistake would be
+silently gone.
+
+So the image ships only devices whose container wiring **is** the real wiring: the printer, because
+network receipt printers really are ESC/POS over TCP 9100, and the keyboard scanner, because
+`typed_by: client` presses real keys on the operator's machine. For a scale or a serial scanner the
+documentation says to run emupos on the host, rather than shipping a stand-in that looks right and
+tests the wrong thing.
+
 ### D4. No X11 libraries in the image
 
 A container cannot reach the host's window server on macOS or Windows at all, and on Linux only by mounting `/tmp/.X11-unix` and the `XAUTHORITY` cookie into it. Supporting that would mean carrying libX11 and libXtst in every pull for a case that works on one host operating system. The bundled configuration uses `typed_by: client` instead, so the keystrokes come from the machine running `emupos scan`, and the image stays small and X-free.
@@ -75,7 +116,7 @@ Building an image that starts is not evidence that a POS can reach it — the lo
 - **A long-lived Docker Hub token in repository secrets** → scoped to one repository with write-only access, rotated on schedule; it cannot publish to PyPI or push to the repository.
 - **`latest` moves under users** → the documentation pins `X.Y.Z` in every compose example, and `latest` appears only in the one-line "try it" command.
 - **Docker Hub anonymous pull rate limits** in CI → documented; GHCR as a second registry is the follow-up if it bites.
-- **The bundled configuration drifts from the starter configuration** `emupos config init` writes → they answer different questions (a container with TCP everywhere, versus a developer machine with pty ports), so they are deliberately different files; the tasks include a check that both stay valid.
+- **The bundled configuration drifts from the starter configuration** `emupos config init` writes → they answer different questions (a container, which can only wire TCP and client-typed keystrokes, versus a developer machine with serial ports), so they are deliberately different files; the tasks include a check that both stay valid.
 - **QEMU-built arm64 image is only smoke-tested on amd64** → the runner is amd64, so the arm64 image is built but not started. Accepted: the only per-architecture content is the base image.
 
 ## Migration Plan

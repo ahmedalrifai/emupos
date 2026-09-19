@@ -49,6 +49,23 @@ devices:
 
 On Windows only the printer's TCP connection is available today; see the [hard limits](../README.md#hard-limits).
 
+With docker compose, beside the POS under test — TCP everywhere, and a serial scanner because CI has nobody to type a client-typed scan:
+
+```yaml
+services:
+  emupos:
+    image: emupos/emupos:0.2.0
+    volumes: [./ci.yaml:/emupos/emupos.yaml:ro]
+  pos:
+    build: .
+    depends_on: [emupos]
+    environment:
+      PRINTER_HOST: emupos:9100
+      EMUPOS_API: http://emupos:8765
+```
+
+A serial scanner needs a device path, which a container cannot hand to another machine; inside a compose network the POS reads it over TCP, or runs emupos itself. See [docker.md](docker.md).
+
 Start emupos in the background, wait until it answers, run your tests, then stop it:
 
 ```sh

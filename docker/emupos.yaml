@@ -1,0 +1,34 @@
+# emupos inside a container. Mount your own file over /emupos/emupos.yaml to replace it.
+#
+# Only devices whose container wiring is the real wiring are here:
+#
+#   front  ESC/POS over TCP 9100 — exactly how a network receipt printer attaches.
+#   lane1  a keyboard-wedge scanner, typed on your machine by `emupos scan` (typed_by: client).
+#
+# A serial device (a scale, or a serial scanner) is deliberately absent. A pseudo-terminal created
+# in a container belongs to the container's own devpts, so the link a POS on the host would open
+# points at a device that does not exist there. The port has to live where the POS is: for now,
+# run emupos on the host for serial devices (docs/docker.md).
+#
+# Everything binds 0.0.0.0 because Docker publishes ports to the container's eth0, not to its
+# loopback: with emupos's normal 127.0.0.1 defaults, nothing outside the container could connect.
+# Publish to 127.0.0.1 on the host to keep it off your network (docs/docker.md).
+schema: 1
+
+api:
+  host: 0.0.0.0
+  port: 8765
+
+devices:
+  # Point your POS at 127.0.0.1:9100 on the host.
+  - id: front
+    type: printer
+    profile: epson-tm-t20iii
+    connections:
+      - tcp: { host: 0.0.0.0, port: 9100 }
+
+  # The container has no desktop, so `emupos scan` types the keys where your POS window is.
+  - id: lane1
+    type: scanner
+    mode: keyboard
+    typed_by: client

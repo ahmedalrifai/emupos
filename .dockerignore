@@ -1,0 +1,5 @@
+# The image needs only the built wheel and the bundled configuration: everything else
+# (the source tree, .git, receipts, openspec, docs, the virtual environment) stays out.
+*
+!dist/*.whl
+!docker/emupos.yaml

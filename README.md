@@ -64,6 +64,14 @@ pipx install emupos
 pip install emupos            # for example inside a CI virtual environment
 ```
 
+With Docker, needing no Python on your machine:
+
+```sh
+docker run --rm -p 127.0.0.1:9100:9100 -p 127.0.0.1:8765:8765 emupos/emupos:latest
+```
+
+The image carries the receipt printer and a keyboard-wedge scanner; serial devices and the keystrokes themselves belong on your own machine. See [docs/docker.md](docs/docker.md).
+
 From a clone of the repository:
 
 ```sh

@@ -340,3 +340,5 @@ def test_devices_shows_who_types(simulator: Simulator) -> None:
     listed = simulator.cli("devices")
 
     assert "typed by the client" in listed.stdout
+    # `emupos run`'s own startup table must not claim it types a scan it never types.
+    assert "typed by whoever runs `emupos scan`" in simulator.output()
