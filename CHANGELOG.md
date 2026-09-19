@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.3.0](https://github.com/ahmedalrifai/emupos/compare/v0.2.0...v0.3.0) (2026-09-19)
+
+
+### Features
+
+* **docker:** publish an image that runs the simulator ([#35](https://github.com/ahmedalrifai/emupos/issues/35)) ([fa7c471](https://github.com/ahmedalrifai/emupos/commit/fa7c471592e9a61f2f0a9e86e593fdf83270ad79))
+* **printer:** render glyphs for every code page the profiles claim ([#32](https://github.com/ahmedalrifai/emupos/issues/32)) ([11eb0a7](https://github.com/ahmedalrifai/emupos/commit/11eb0a7dc815b93863c42cefc6d51c07ba31d3e2))
+* **printer:** simulate ESC i and ESC m cuts, ESC v and ESC u status, and GS T ([#30](https://github.com/ahmedalrifai/emupos/issues/30)) ([3b63202](https://github.com/ahmedalrifai/emupos/commit/3b63202acd46d63857a81e23a28b10bf0433bfff))
+* **scanner:** type keyboard scans on the client that requested them ([#33](https://github.com/ahmedalrifai/emupos/issues/33)) ([d381f65](https://github.com/ahmedalrifai/emupos/commit/d381f6513b914463cf36986204fc6673058671e3))
+
+
+### Bug Fixes
+
+* **cli:** check the shape of a device id before using it ([#39](https://github.com/ahmedalrifai/emupos/issues/39)) ([c383731](https://github.com/ahmedalrifai/emupos/commit/c3837312f2324958c76b0261bc34dd857e7fcb44))
+* **linux:** type exact characters with --unicode on X11 ([#28](https://github.com/ahmedalrifai/emupos/issues/28)) ([b811a29](https://github.com/ahmedalrifai/emupos/commit/b811a29972030d2abaf29600a4f475572ec7d120))
+* **printer:** stop ESC r and other unrecognised commands printing their parameters ([#29](https://github.com/ahmedalrifai/emupos/issues/29)) ([c742b2a](https://github.com/ahmedalrifai/emupos/commit/c742b2a57bec6bae300c3750f102c43d3379b053))
+
+
+### Documentation
+
+* add a documentation badge to the README ([#38](https://github.com/ahmedalrifai/emupos/issues/38)) ([b1ed18c](https://github.com/ahmedalrifai/emupos/commit/b1ed18c502a6a11bafd9545d8951463fad8e7b91))
+* **changelog:** list what Windows support in 0.2.0 covers ([#16](https://github.com/ahmedalrifai/emupos/issues/16)) ([8fc149a](https://github.com/ahmedalrifai/emupos/commit/8fc149acad7f6fc528f3074794bca0a84c69622e))
+* **openspec:** park the serial bridge with its design intact ([#36](https://github.com/ahmedalrifai/emupos/issues/36)) ([b0992cf](https://github.com/ahmedalrifai/emupos/commit/b0992cfc9cdebc45f2f9e4220bb72fa90677e05e))
+* restructure the guides and publish them on Read the Docs ([#37](https://github.com/ahmedalrifai/emupos/issues/37)) ([9e45243](https://github.com/ahmedalrifai/emupos/commit/9e452433d1bc114d51262720604e5bfa32299cbc))
+
 ## [0.2.0](https://github.com/ahmedalrifai/emupos/compare/v0.1.2...v0.2.0) (2026-09-16)
 
 
