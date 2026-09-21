@@ -1,0 +1,528 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-21T20:55:28+00:00",
+  "title": "Design System: emupos",
+  "extensions": {
+    "colorMeta": {
+      "page-grey": {
+        "role": "neutral",
+        "displayName": "Page Grey",
+        "canonical": "#f4f5f7",
+        "tonalRamp": [
+          "#111827",
+          "#1f2937",
+          "#374151",
+          "#4b5563",
+          "#6b7280",
+          "#9ca3af",
+          "#e5e7eb",
+          "#f9fafb"
+        ]
+      },
+      "card-white": {
+        "role": "neutral",
+        "displayName": "Card White",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#111827",
+          "#1f2937",
+          "#374151",
+          "#4b5563",
+          "#6b7280",
+          "#9ca3af",
+          "#e5e7eb",
+          "#f9fafb"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#e4e7ec",
+        "tonalRamp": [
+          "#111827",
+          "#1f2937",
+          "#374151",
+          "#4b5563",
+          "#6b7280",
+          "#9ca3af",
+          "#e5e7eb",
+          "#f9fafb"
+        ]
+      },
+      "row-line": {
+        "role": "neutral",
+        "displayName": "Row Line",
+        "canonical": "#f0f2f5",
+        "tonalRamp": [
+          "#111827",
+          "#1f2937",
+          "#374151",
+          "#4b5563",
+          "#6b7280",
+          "#9ca3af",
+          "#e5e7eb",
+          "#f9fafb"
+        ]
+      },
+      "control-edge": {
+        "role": "neutral",
+        "displayName": "Control Edge",
+        "canonical": "#d0d5dd",
+        "tonalRamp": [
+          "#111827",
+          "#1f2937",
+          "#374151",
+          "#4b5563",
+          "#6b7280",
+          "#9ca3af",
+          "#e5e7eb",
+          "#f9fafb"
+        ]
+      },
+      "quiet-fill": {
+        "role": "neutral",
+        "displayName": "Quiet Fill",
+        "canonical": "#f2f4f7",
+        "tonalRamp": [
+          "#111827",
+          "#1f2937",
+          "#374151",
+          "#4b5563",
+          "#6b7280",
+          "#9ca3af",
+          "#e5e7eb",
+          "#f9fafb"
+        ]
+      },
+      "wash": {
+        "role": "neutral",
+        "displayName": "Wash",
+        "canonical": "#f9fafb",
+        "tonalRamp": [
+          "#111827",
+          "#1f2937",
+          "#374151",
+          "#4b5563",
+          "#6b7280",
+          "#9ca3af",
+          "#e5e7eb",
+          "#f9fafb"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#111827",
+        "tonalRamp": [
+          "#111827",
+          "#1f2937",
+          "#374151",
+          "#4b5563",
+          "#6b7280",
+          "#9ca3af",
+          "#e5e7eb",
+          "#f9fafb"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Ink 2",
+        "canonical": "#4b5563",
+        "tonalRamp": [
+          "#111827",
+          "#1f2937",
+          "#374151",
+          "#4b5563",
+          "#6b7280",
+          "#9ca3af",
+          "#e5e7eb",
+          "#f9fafb"
+        ]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Ink 3",
+        "canonical": "#6b7280",
+        "tonalRamp": [
+          "#111827",
+          "#1f2937",
+          "#374151",
+          "#4b5563",
+          "#6b7280",
+          "#9ca3af",
+          "#e5e7eb",
+          "#f9fafb"
+        ]
+      },
+      "action-blue": {
+        "role": "primary",
+        "displayName": "Action Blue",
+        "canonical": "#2563eb",
+        "tonalRamp": [
+          "#172554",
+          "#1e3a8a",
+          "#1e40af",
+          "#1d4ed8",
+          "#2563eb",
+          "#60a5fa",
+          "#bfdbfe",
+          "#eff6ff"
+        ]
+      },
+      "action-blue-deep": {
+        "role": "primary",
+        "displayName": "Action Blue Deep",
+        "canonical": "#1d4ed8",
+        "tonalRamp": [
+          "#172554",
+          "#1e3a8a",
+          "#1e40af",
+          "#1d4ed8",
+          "#2563eb",
+          "#60a5fa",
+          "#bfdbfe",
+          "#eff6ff"
+        ]
+      },
+      "blue-tint": {
+        "role": "primary",
+        "displayName": "Blue Tint",
+        "canonical": "#eff4ff",
+        "tonalRamp": [
+          "#172554",
+          "#1e3a8a",
+          "#1e40af",
+          "#1d4ed8",
+          "#2563eb",
+          "#60a5fa",
+          "#bfdbfe",
+          "#eff6ff"
+        ]
+      },
+      "blue-note-ink": {
+        "role": "primary",
+        "displayName": "Blue Note Ink",
+        "canonical": "#1e40af",
+        "tonalRamp": [
+          "#172554",
+          "#1e3a8a",
+          "#1e40af",
+          "#1d4ed8",
+          "#2563eb",
+          "#60a5fa",
+          "#bfdbfe",
+          "#eff6ff"
+        ]
+      },
+      "fault-red": {
+        "role": "secondary",
+        "displayName": "Fault Red",
+        "canonical": "#dc2626",
+        "tonalRamp": [
+          "#450a0a",
+          "#7f1d1d",
+          "#991b1b",
+          "#b91c1c",
+          "#dc2626",
+          "#f87171",
+          "#fecaca",
+          "#fef2f2"
+        ]
+      },
+      "fault-red-ink": {
+        "role": "secondary",
+        "displayName": "Fault Red Ink",
+        "canonical": "#991b1b",
+        "tonalRamp": [
+          "#450a0a",
+          "#7f1d1d",
+          "#991b1b",
+          "#b91c1c",
+          "#dc2626",
+          "#f87171",
+          "#fecaca",
+          "#fef2f2"
+        ]
+      },
+      "fault-red-tint": {
+        "role": "secondary",
+        "displayName": "Fault Red Tint",
+        "canonical": "#fef2f2",
+        "tonalRamp": [
+          "#450a0a",
+          "#7f1d1d",
+          "#991b1b",
+          "#b91c1c",
+          "#dc2626",
+          "#f87171",
+          "#fecaca",
+          "#fef2f2"
+        ]
+      },
+      "ready-green": {
+        "role": "secondary",
+        "displayName": "Ready Green",
+        "canonical": "#15803d",
+        "tonalRamp": [
+          "#052e16",
+          "#14532d",
+          "#166534",
+          "#15803d",
+          "#16a34a",
+          "#4ade80",
+          "#bbf7d0",
+          "#f0fdf4"
+        ]
+      },
+      "ready-green-tint": {
+        "role": "secondary",
+        "displayName": "Ready Green Tint",
+        "canonical": "#ecfdf3",
+        "tonalRamp": [
+          "#052e16",
+          "#14532d",
+          "#166534",
+          "#15803d",
+          "#16a34a",
+          "#4ade80",
+          "#bbf7d0",
+          "#f0fdf4"
+        ]
+      },
+      "moving-amber": {
+        "role": "secondary",
+        "displayName": "Moving Amber",
+        "canonical": "#b45309",
+        "tonalRamp": [
+          "#451a03",
+          "#78350f",
+          "#92400e",
+          "#b45309",
+          "#d97706",
+          "#fbbf24",
+          "#fde68a",
+          "#fffbeb"
+        ]
+      },
+      "moving-amber-tint": {
+        "role": "secondary",
+        "displayName": "Moving Amber Tint",
+        "canonical": "#fffbeb",
+        "tonalRamp": [
+          "#451a03",
+          "#78350f",
+          "#92400e",
+          "#b45309",
+          "#d97706",
+          "#fbbf24",
+          "#fde68a",
+          "#fffbeb"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Reading",
+        "purpose": "The scale's net weight, the one large number."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card headings and, at 700, the wordmark."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default interface copy; 13px for hints, alerts, chips and the table."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Field and row labels, pills."
+      },
+      "data": {
+        "displayName": "Data",
+        "purpose": "Monospace for device and API values only."
+      }
+    },
+    "shadows": [
+      {
+        "name": "rest",
+        "value": "0 1px 2px rgba(16, 24, 40, 0.05)",
+        "purpose": "Cards, inputs, secondary buttons."
+      },
+      {
+        "name": "paper",
+        "value": "0 1px 3px rgba(16, 24, 40, 0.16), 0 0 0 1px rgba(16, 24, 40, 0.04)",
+        "purpose": "The latest receipt image."
+      },
+      {
+        "name": "knob",
+        "value": "0 1px 2px rgba(16, 24, 40, 0.2)",
+        "purpose": "Switch thumb."
+      },
+      {
+        "name": "focus-halo",
+        "value": "0 0 0 3px rgba(37, 99, 235, 0.18)",
+        "purpose": "Focused input, with a blue border."
+      }
+    ],
+    "motion": [
+      {
+        "name": "press",
+        "value": "background-color 0.12s ease-out",
+        "purpose": "Button hover."
+      },
+      {
+        "name": "toggle",
+        "value": "0.15s ease-out",
+        "purpose": "Switch track colour and knob slide."
+      },
+      {
+        "name": "arrived",
+        "value": "1.6s ease-out, #eef4ff to transparent",
+        "purpose": "A newly arrived event row."
+      },
+      {
+        "name": "reduced",
+        "value": "prefers-reduced-motion: none",
+        "purpose": "All transitions and animations off."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrow",
+        "value": "640px"
+      },
+      {
+        "name": "card-min",
+        "value": "320px"
+      },
+      {
+        "name": "container",
+        "value": "1240px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one blue action per form: Set weight, Scan.",
+      "html": "<button class=\"ds-btn\">Set weight</button>",
+      "css": ":host{--bg:#f4f5f7;--card:#fff;--line:#e4e7ec;--ink:#111827;--ink-2:#4b5563;--ink-3:#6b7280;--blue:#2563eb;--blue-dark:#1d4ed8;--blue-soft:#eff4ff;--red:#dc2626;--red-ink:#991b1b;--red-soft:#fef2f2;--green:#15803d;--green-soft:#ecfdf3;--amber:#b45309;--amber-soft:#fffbeb;--ui:system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif;--mono:ui-monospace,\"SF Mono\",Menlo,Consolas,monospace;font:400 14px/1.5 var(--ui);color:var(--ink);} .ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:8px 14px;border:1px solid transparent;border-radius:8px;background:var(--blue);color:#fff;font:600 13.5px/1.2 var(--ui);cursor:pointer;transition:background-color .12s ease-out;} .ds-btn:hover{background:var(--blue-dark);} .ds-btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px;}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Other physical actions: Zero, Tare, Close drawer.",
+      "html": "<button class=\"ds-btn ds-secondary\">Close drawer</button> <button class=\"ds-btn ds-secondary\" disabled>Tare</button>",
+      "css": ":host{--bg:#f4f5f7;--card:#fff;--line:#e4e7ec;--ink:#111827;--ink-2:#4b5563;--ink-3:#6b7280;--blue:#2563eb;--blue-dark:#1d4ed8;--blue-soft:#eff4ff;--red:#dc2626;--red-ink:#991b1b;--red-soft:#fef2f2;--green:#15803d;--green-soft:#ecfdf3;--amber:#b45309;--amber-soft:#fffbeb;--ui:system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif;--mono:ui-monospace,\"SF Mono\",Menlo,Consolas,monospace;font:400 14px/1.5 var(--ui);color:var(--ink);} .ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:8px 14px;border:1px solid transparent;border-radius:8px;background:var(--blue);color:#fff;font:600 13.5px/1.2 var(--ui);cursor:pointer;transition:background-color .12s ease-out;} .ds-btn:hover{background:var(--blue-dark);} .ds-btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px;} .ds-secondary{border-color:#d0d5dd;background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(16,24,40,.05);} .ds-secondary:hover{background:#f9fafb;} .ds-btn:disabled{border-color:#eaecf0;background:#f2f4f7;color:#98a2b3;box-shadow:none;cursor:not-allowed;}"
+    },
+    {
+      "name": "Input with unit",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Bordered field with an inline unit suffix and a blue focus halo.",
+      "html": "<label class=\"ds-input\"><input placeholder=\"Grams\" inputmode=\"numeric\"><span>g</span></label>",
+      "css": ":host{--bg:#f4f5f7;--card:#fff;--line:#e4e7ec;--ink:#111827;--ink-2:#4b5563;--ink-3:#6b7280;--blue:#2563eb;--blue-dark:#1d4ed8;--blue-soft:#eff4ff;--red:#dc2626;--red-ink:#991b1b;--red-soft:#fef2f2;--green:#15803d;--green-soft:#ecfdf3;--amber:#b45309;--amber-soft:#fffbeb;--ui:system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif;--mono:ui-monospace,\"SF Mono\",Menlo,Consolas,monospace;font:400 14px/1.5 var(--ui);color:var(--ink);} .ds-input{display:flex;align-items:center;gap:8px;min-height:36px;padding:6px 10px;border:1px solid #d0d5dd;border-radius:8px;background:#fff;box-shadow:0 1px 2px rgba(16,24,40,.05);} .ds-input:focus-within{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.18);} .ds-input input{flex:1;min-width:0;border:0;outline:0;background:none;font:inherit;color:inherit;font-variant-numeric:tabular-nums;} .ds-input input::placeholder,.ds-input span{color:var(--ink-3);} .ds-input span{font-size:13px;}"
+    },
+    {
+      "name": "Status Pills",
+      "kind": "chip",
+      "refersTo": "pill-neutral",
+      "description": "State in colour and words with a leading dot.",
+      "html": "<span class=\"ds-pill ds-ok\">Ready</span> <span class=\"ds-pill ds-bad\">paper-out</span> <span class=\"ds-pill ds-warn\">Open</span> <span class=\"ds-pill\">Connecting</span>",
+      "css": ":host{--bg:#f4f5f7;--card:#fff;--line:#e4e7ec;--ink:#111827;--ink-2:#4b5563;--ink-3:#6b7280;--blue:#2563eb;--blue-dark:#1d4ed8;--blue-soft:#eff4ff;--red:#dc2626;--red-ink:#991b1b;--red-soft:#fef2f2;--green:#15803d;--green-soft:#ecfdf3;--amber:#b45309;--amber-soft:#fffbeb;--ui:system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif;--mono:ui-monospace,\"SF Mono\",Menlo,Consolas,monospace;font:400 14px/1.5 var(--ui);color:var(--ink);} .ds-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;font:600 12.5px/1.2 var(--ui);background:#f2f4f7;color:var(--ink-2);white-space:nowrap;} .ds-pill::before{content:\"\";width:7px;height:7px;border-radius:50%;background:currentColor;} .ds-ok{background:var(--green-soft);color:var(--green);} .ds-bad{background:var(--red-soft);color:var(--red);} .ds-warn{background:var(--amber-soft);color:var(--amber);}"
+    },
+    {
+      "name": "Filter Chips",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Event device filters; the pressed chip inverts to ink.",
+      "html": "<button class=\"ds-chip\" aria-pressed=\"true\">All devices</button> <button class=\"ds-chip\" aria-pressed=\"false\">front</button>",
+      "css": ":host{--bg:#f4f5f7;--card:#fff;--line:#e4e7ec;--ink:#111827;--ink-2:#4b5563;--ink-3:#6b7280;--blue:#2563eb;--blue-dark:#1d4ed8;--blue-soft:#eff4ff;--red:#dc2626;--red-ink:#991b1b;--red-soft:#fef2f2;--green:#15803d;--green-soft:#ecfdf3;--amber:#b45309;--amber-soft:#fffbeb;--ui:system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif;--mono:ui-monospace,\"SF Mono\",Menlo,Consolas,monospace;font:400 14px/1.5 var(--ui);color:var(--ink);} .ds-chip{min-height:30px;padding:5px 12px;border:1px solid #d0d5dd;border-radius:999px;background:#fff;color:var(--ink);font:500 13px/1.2 var(--ui);cursor:pointer;} .ds-chip[aria-pressed=\"true\"]{border-color:var(--ink);background:var(--ink);color:#fff;} .ds-chip:focus-visible{outline:2px solid var(--blue);outline-offset:2px;}"
+    },
+    {
+      "name": "Fault Switch",
+      "kind": "custom",
+      "description": "On/off fault control; the track turns red when on.",
+      "html": "<button class=\"ds-switch\" role=\"switch\" aria-checked=\"true\"><span>paper-out</span><span class=\"ds-track\"></span></button><button class=\"ds-switch\" role=\"switch\" aria-checked=\"false\"><span>cover-open</span><span class=\"ds-track\"></span></button>",
+      "css": ":host{--bg:#f4f5f7;--card:#fff;--line:#e4e7ec;--ink:#111827;--ink-2:#4b5563;--ink-3:#6b7280;--blue:#2563eb;--blue-dark:#1d4ed8;--blue-soft:#eff4ff;--red:#dc2626;--red-ink:#991b1b;--red-soft:#fef2f2;--green:#15803d;--green-soft:#ecfdf3;--amber:#b45309;--amber-soft:#fffbeb;--ui:system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif;--mono:ui-monospace,\"SF Mono\",Menlo,Consolas,monospace;font:400 14px/1.5 var(--ui);color:var(--ink);} .ds-switch{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:8px 0;border:0;background:none;font:inherit;color:inherit;text-align:left;cursor:pointer;} .ds-switch:focus-visible{outline:2px solid var(--blue);outline-offset:2px;} .ds-track{position:relative;flex:none;width:36px;height:20px;border-radius:999px;background:#d0d5dd;transition:background-color .15s ease-out;} .ds-track::after{content:\"\";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(16,24,40,.2);transition:transform .15s ease-out;} .ds-switch[aria-checked=\"true\"] .ds-track{background:var(--red);} .ds-switch[aria-checked=\"true\"] .ds-track::after{transform:translateX(16px);} .ds-switch:hover .ds-track{filter:brightness(.95);}"
+    },
+    {
+      "name": "Device Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "One device: icon tile, id, type, status pill, then its reading and actions.",
+      "html": "<section class=\"ds-card\"><div class=\"ds-card-h\"><span class=\"ds-icon\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 20h14\"/><path d=\"M12 4v16\"/><path d=\"M5 8h14\"/><path d=\"M5 8l-3 6h6z\"/><path d=\"M19 8l-3 6h6z\"/></svg></span><div><h2>deli</h2><p>Scale</p></div><span class=\"ds-pill\">Stable</span></div><div class=\"ds-card-b\"><div class=\"ds-meta\">/dev/ttys004 · 9600 baud</div><div class=\"ds-value\"><b>1.250</b><span>kg net</span></div><dl class=\"ds-stats\"><div class=\"ds-stat\"><dt>Tare</dt><dd>0.000</dd></div><div class=\"ds-stat\"><dt>Gross</dt><dd>1.250</dd></div><div class=\"ds-stat\"><dt>Capacity</dt><dd>15.000</dd></div></dl></div></section>",
+      "css": ":host{--bg:#f4f5f7;--card:#fff;--line:#e4e7ec;--ink:#111827;--ink-2:#4b5563;--ink-3:#6b7280;--blue:#2563eb;--blue-dark:#1d4ed8;--blue-soft:#eff4ff;--red:#dc2626;--red-ink:#991b1b;--red-soft:#fef2f2;--green:#15803d;--green-soft:#ecfdf3;--amber:#b45309;--amber-soft:#fffbeb;--ui:system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif;--mono:ui-monospace,\"SF Mono\",Menlo,Consolas,monospace;font:400 14px/1.5 var(--ui);color:var(--ink);} .ds-card{max-width:360px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.05);} .ds-card-h{display:flex;align-items:center;gap:12px;padding:16px 16px 12px;} .ds-card-h h2{margin:0;font:650 16px/1.2 var(--ui);} .ds-card-h p{margin:2px 0 0;color:var(--ink-3);font-size:12.5px;} .ds-pill{margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;font:600 12.5px/1.2 var(--ui);background:var(--green-soft);color:var(--green);} .ds-pill::before{content:\"\";width:7px;height:7px;border-radius:50%;background:currentColor;} .ds-icon{display:grid;place-items:center;width:38px;height:38px;flex:none;border-radius:10px;background:var(--blue-soft);color:var(--blue);} .ds-icon svg{width:20px;height:20px;} .ds-card-b{padding:4px 16px 16px;display:grid;gap:14px;} .ds-meta{font:500 12px/1.5 var(--mono);color:var(--ink-3);} .ds-value{display:flex;align-items:baseline;gap:8px;} .ds-value b{font:650 40px/1 var(--ui);letter-spacing:-.02em;font-variant-numeric:tabular-nums;} .ds-value span{color:var(--ink-3);font-size:15px;} .ds-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0;} .ds-stat{padding:8px 10px;border-radius:8px;background:#f9fafb;} .ds-stat dt{font-size:12px;color:var(--ink-3);} .ds-stat dd{margin:2px 0 0;font:600 14px/1.3 var(--ui);font-variant-numeric:tabular-nums;}"
+    },
+    {
+      "name": "Top Bar",
+      "kind": "nav",
+      "description": "Sticky bar: text wordmark, page name, API address, connection pill.",
+      "html": "<header class=\"ds-bar\"><span class=\"ds-wordmark\">emupos</span><span class=\"ds-sub\">Control page</span><span class=\"ds-addr\">http://127.0.0.1:8765</span><span class=\"ds-pill\">Live</span></header>",
+      "css": ":host{--bg:#f4f5f7;--card:#fff;--line:#e4e7ec;--ink:#111827;--ink-2:#4b5563;--ink-3:#6b7280;--blue:#2563eb;--blue-dark:#1d4ed8;--blue-soft:#eff4ff;--red:#dc2626;--red-ink:#991b1b;--red-soft:#fef2f2;--green:#15803d;--green-soft:#ecfdf3;--amber:#b45309;--amber-soft:#fffbeb;--ui:system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif;--mono:ui-monospace,\"SF Mono\",Menlo,Consolas,monospace;font:400 14px/1.5 var(--ui);color:var(--ink);} .ds-bar{display:flex;align-items:center;gap:12px;padding:12px 20px;background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);} .ds-wordmark{font:700 16px/1 var(--ui);letter-spacing:-.01em;} .ds-sub{color:var(--ink-3);font-size:13px;} .ds-addr{margin-left:auto;font:500 12.5px/1.2 var(--mono);color:var(--ink-3);} .ds-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;font:600 12.5px/1.2 var(--ui);background:var(--green-soft);color:var(--green);} .ds-pill::before{content:\"\";width:7px;height:7px;border-radius:50%;background:currentColor;}"
+    },
+    {
+      "name": "Alert and Countdown",
+      "kind": "custom",
+      "description": "Refusal alert with the API's message and fix; blue countdown banner before a keyboard scan.",
+      "html": "<p class=\"ds-alert\"><b>The scale is moving.</b>Wait for a stable reading, then tare.</p><p class=\"ds-info\"><b>3</b>Click your POS window now. The barcode is typed where the focus is.</p>",
+      "css": ":host{--bg:#f4f5f7;--card:#fff;--line:#e4e7ec;--ink:#111827;--ink-2:#4b5563;--ink-3:#6b7280;--blue:#2563eb;--blue-dark:#1d4ed8;--blue-soft:#eff4ff;--red:#dc2626;--red-ink:#991b1b;--red-soft:#fef2f2;--green:#15803d;--green-soft:#ecfdf3;--amber:#b45309;--amber-soft:#fffbeb;--ui:system-ui,-apple-system,\"Segoe UI\",Roboto,sans-serif;--mono:ui-monospace,\"SF Mono\",Menlo,Consolas,monospace;font:400 14px/1.5 var(--ui);color:var(--ink);} .ds-alert{margin:0 0 8px;padding:10px 12px;border-radius:8px;background:var(--red-soft);color:var(--red-ink);font-size:13px;} .ds-alert b{display:block;font-weight:600;} .ds-info{display:flex;align-items:center;gap:10px;margin:0;padding:10px 12px;border-radius:8px;background:var(--blue-soft);color:#1e40af;font-size:13px;} .ds-info b{font:700 22px/1 var(--ui);font-variant-numeric:tabular-nums;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Bench",
+    "overview": "A device dashboard played straight: each simulated device is one white card on a pale grey page, carrying its state in one line and its physical actions below. The page sits in a narrow window beside the POS app, so it stays light, calm and dense without being cramped. Colour means something or is absent: blue is the one action colour, and green, red and amber appear only as state.\n\nThe system refuses costume. Devices are not drawn as hardware, there is no sidebar and no chart; the only picture on the page is the receipt the printer actually produced, shown as a strip of paper. Everything else is type, hairlines and a small set of controls.",
+    "keyCharacteristics": [
+      "Light only: white cards (1px hairline, 12px corners, faint shadow) on a grey page.",
+      "One action colour (blue) for primary buttons, links, focus and the caret.",
+      "Semantic status pills with a leading dot: green ready, red fault, amber open or moving, grey neutral.",
+      "System UI stack for the interface; monospace only for data (addresses, times, event types, payloads, scans).",
+      "Hand-drawn 1.75-stroke line icons in soft blue tiles, one per device type.",
+      "Faults are switches, not checkboxes or buttons."
+    ],
+    "rules": [
+      {
+        "name": "The State-Only Hue Rule",
+        "body": "Green, red and amber appear only as state (pills, the fault switch, alerts). They never decorate, and a colour never carries meaning alone: every pill also says its state in words.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Blue Rule",
+        "body": "Blue is the only action colour. A control that is not blue is secondary, and a blue element is always something you can press or where focus is.",
+        "section": "colors"
+      },
+      {
+        "name": "The Monospace Is Data Rule",
+        "body": "Monospace is reserved for values from devices or the API. Interface copy, labels and buttons are always the UI face.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Figures Rule",
+        "body": "Every changing number (weights, stats, times, countdown, inputs) uses tabular figures so readings do not jitter as they update.",
+        "section": "typography"
+      },
+      {
+        "name": "The Border First Rule",
+        "body": "Structure comes from 1px hairlines; shadows only soften edges and never exceed the Paper value.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** give each device one card: icon tile, id as title, type as subtitle, status pill right, actions below.",
+      "**Do** use a switch for any on/off device condition, turning Fault Red when on.",
+      "**Do** keep monospace for device and API data only, and set it `dir=\"auto\"` so right-to-left data renders correctly.",
+      "**Do** keep every state in words as well as colour, and every focusable element on the 2px blue focus ring.",
+      "**Do** draw icons as inline 24px line SVGs at 1.75 stroke, round caps and joins, in a Blue Tint tile."
+    ],
+    "donts": [
+      "**Don't** introduce a second action colour; blue is the only one.",
+      "**Don't** use green, red or amber for anything but state.",
+      "**Don't** draw devices as hardware, add a sidebar, or add charts.",
+      "**Don't** add a dark theme; the page is light only.",
+      "**Don't** load fonts, icons or scripts from another origin; the system stacks are the type."
+    ]
+  }
+}
