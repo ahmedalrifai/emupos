@@ -15,7 +15,7 @@ from fastapi import APIRouter, FastAPI
 
 from emupos.api.errors import install_error_handlers
 from emupos.api.guard import BrowserRequestGuard
-from emupos.api.routes import barcodes, devices, events, health, printers, scales, scanners
+from emupos.api.routes import barcodes, devices, events, health, page, printers, scales, scanners
 from emupos.api.schemas import ErrorResponse
 from emupos.daemon.simulator import Simulator
 
@@ -25,7 +25,8 @@ ERROR_RESPONSES: dict[int | str, dict[str, object]] = {
 }
 
 
-def create_app(simulator: Simulator) -> FastAPI:
+def create_app(simulator: Simulator, *, ui: bool = False) -> FastAPI:
+    """The API; with `ui`, also the control page and the guard's same-origin exception for it."""
     app = FastAPI(
         title="emupos control API",
         version=version("emupos"),
@@ -35,7 +36,9 @@ def create_app(simulator: Simulator) -> FastAPI:
     )
     app.state.simulator = simulator
     app.add_middleware(
-        BrowserRequestGuard, check_host=_is_loopback(simulator.loaded.config.api.host)
+        BrowserRequestGuard,
+        check_host=_is_loopback(simulator.loaded.config.api.host),
+        allow_page_origin=ui,
     )
     install_error_handlers(app)
 
@@ -43,6 +46,7 @@ def create_app(simulator: Simulator) -> FastAPI:
     for module in (health, devices, printers, scales, scanners, barcodes, events):
         api.include_router(module.router)
     app.include_router(api)
+    app.include_router(page.router() if ui else page.MISSING)
     return app
 
 

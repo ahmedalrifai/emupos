@@ -82,6 +82,19 @@ emupos run --config scale.yaml
 
 You can do that alongside the container: the printer keeps running in Docker, and the host emupos serves only the serial devices.
 
+## The control page
+
+Run `emupos run --ui` in the container to serve the control page, a web page with a button for every physical action:
+
+```sh
+docker run --rm \
+  -p 127.0.0.1:9100:9100 \
+  -p 127.0.0.1:8765:8765 \
+  emupos/emupos:0.2.0 emupos run --ui
+```
+
+Open `http://127.0.0.1:8765/`. The page acts on the devices only when you open it through `127.0.0.1`, `localhost` or `[::1]`; opened through your machine's network address, it shows the devices but cannot change them. It offers no scan for `lane1`: a browser cannot type into your POS window, so `emupos scan` on your machine is still how you scan.
+
 ## The other commands
 
 The CLI is in the image, so anything that does not type works without installing emupos:

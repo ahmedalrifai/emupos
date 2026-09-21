@@ -3,8 +3,8 @@
     python .github/scripts/smoke_test.py X.Y.Z
 
 Checks that `emupos --version` reports the release version, that `emupos doctor --json`
-prints a JSON report, and that a simulated printer turns a fixture ESC/POS job into the
-expected receipt text. Uses only the standard library so it runs in a bare venv.
+prints a JSON report, that a simulated printer turns a fixture ESC/POS job into the
+expected receipt text, and that `emupos run --ui` serves the control page files. Uses only the standard library so it runs in a bare venv.
 """
 
 import json
@@ -69,7 +69,7 @@ def check_receipt() -> None:
             f"  - {{ id: front, type: printer, profile: epson-tm-t20iii, connections: [ {{ tcp: {{ port: {printer_port} }} }} ] }}\n",
             encoding="utf-8",
         )
-        command = [sys.executable, "-m", "emupos.cli.app", "run"]
+        command = [sys.executable, "-m", "emupos.cli.app", "run", "--ui"]
         process = subprocess.Popen(
             command, cwd=workdir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
         )
@@ -79,6 +79,10 @@ def check_receipt() -> None:
                 lambda: urllib.request.urlopen(f"{api}/health", timeout=2).status == 200,
                 "the control API",
             )
+            for page in ("", "page.js"):  # the page files ship inside the wheel
+                url = f"http://127.0.0.1:{api_port}/{page}"
+                if urllib.request.urlopen(url, timeout=2).status != 200:
+                    raise SystemExit(f"`emupos run --ui` did not serve {url}")
             with socket.create_connection(("127.0.0.1", printer_port), timeout=5) as printer:
                 printer.sendall(RECEIPT_JOB)
             text_url = f"{api}/devices/front/receipts/latest/text"

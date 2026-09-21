@@ -33,6 +33,12 @@ def run(
         bool,
         typer.Option("--demo", help="Use the built-in demo devices instead of a file."),
     ] = False,
+    ui: Annotated[
+        bool,
+        typer.Option(
+            "--ui", help="Also serve the control page, a web page for the physical actions."
+        ),
+    ] = False,
 ) -> None:
     """Start the simulated devices and the control API, and show events live. Ctrl+C stops."""
     if demo and config is not None:
@@ -52,7 +58,7 @@ def run(
     logger = logging.getLogger("emupos")
     logger.addHandler(handler)
     try:
-        serve(loaded, lambda simulator: _started(out, simulator, demo))
+        serve(loaded, lambda simulator: _started(out, simulator, demo, ui), ui=ui)
     except StartupError as error:
         raise CliError(str(error), code="startup_failed") from None
     finally:
@@ -60,7 +66,7 @@ def run(
     out.print("emupos stopped")
 
 
-def _started(out: Console, simulator: "Simulator", demo: bool) -> None:
+def _started(out: Console, simulator: "Simulator", demo: bool, ui: bool) -> None:
     loaded = simulator.loaded
     title = "built-in demo configuration" if demo else loaded.source
     out.print(Text.assemble((f"emupos {version('emupos')}", "bold"), f" · {title}"))
@@ -83,6 +89,11 @@ def _started(out: Console, simulator: "Simulator", demo: bool) -> None:
     api = loaded.config.api
     host = f"[{api.host}]" if ":" in api.host else api.host
     out.print(Text.assemble(("control API ", "bold"), f"http://{host}:{api.port}"))
+    if ui:
+        url, problem = control_page(api.host, api.port)
+        out.print(Text.assemble(("control page ", "bold"), url))
+        if problem:
+            warning(out, problem)
     if demo:
         out.print("Running the demo configuration. Write your own with `emupos config init`.")
     if not _is_loopback(api.host):
@@ -96,6 +107,25 @@ def _started(out: Console, simulator: "Simulator", demo: bool) -> None:
     for event in simulator.startup_events:  # published while connections opened, before this ran
         out.print(lines.line(event))
     simulator.bus.subscribe(lambda event: out.print(lines.line(event)))
+
+
+def control_page(host: str, port: int) -> tuple[str, str | None]:
+    """Where the control page can act, and why it cannot when that is so (design D8).
+
+    The page's requests are accepted only through a loopback address; a wildcard address listens
+    on loopback too, so its URL names 127.0.0.1.
+    """
+    bare = host.strip("[]")
+    if bare in {"0.0.0.0", "::"}:  # noqa: S104 - recognising the wildcard, not binding to it
+        return f"http://127.0.0.1:{port}/", None
+    url = f"http://[{bare}]:{port}/" if ":" in bare else f"http://{bare}:{port}/"
+    if _is_loopback(host):
+        return url, None
+    problem = (
+        f"a control page opened through {host} can show the devices but cannot act on them: "
+        "it acts only through 127.0.0.1, localhost or [::1]; set api.host to 127.0.0.1 to use it"
+    )
+    return url, problem
 
 
 def _endpoint_text(endpoint: "Endpoint") -> str:
