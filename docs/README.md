@@ -19,7 +19,7 @@ emupos sits between two things, and they never mix:
 ```
 
 - **Your POS** talks to emupos only through the real device protocols: it prints to TCP port 9100, reads the scale on a serial port, receives scans as keystrokes or serial data. It never uses the emupos API. The integration code you test is the code that runs with real devices: moving to real hardware changes your POS's device settings, not its code ([how](moving-to-real-hardware.md)).
-- **You** do what a person does with the hardware: put an item on the scale, pull the scanner trigger, let the paper run out, push the drawer shut, look at the receipt. You do it with `emupos` commands. Automated tests can do the same through the [control API](automation.md).
+- **You** do what a person does with the hardware: put an item on the scale, pull the scanner trigger, let the paper run out, push the drawer shut, look at the receipt. You do it with `emupos` commands, or with the buttons of the control page that `emupos run --ui` serves. Automated tests can do the same through the [control API](automation.md).
 - **Keyboard scans are typed by the machine emupos runs on.** When emupos has no desktop of its own — in a container, or over SSH — set `typed_by: client` on the scanner: emupos still validates the scan, plans the keystrokes and publishes the event, and `emupos scan` presses the keys where you are ([configuration](configuration.md#scanner-type-scanner)).
 
 | With real hardware you… | With emupos you run… |

@@ -14,7 +14,7 @@ from typer.testing import CliRunner
 from emupos.cli.app import app
 from emupos.cli.event_lines import EventLines
 from emupos.cli.output import console
-from emupos.cli.run import ConsoleHandler
+from emupos.cli.run import ConsoleHandler, control_page
 from emupos.events import Event, EventType, PublishedEvent
 from emupos.transports.keyboard import keyboard
 
@@ -188,3 +188,40 @@ def test_run_api_port_in_use(tmp_path: Path, listener: socket.socket) -> None:
     result = runner.invoke(app, ["run"])
     assert result.exit_code == 1
     assert f"port {port}" in result.stderr
+
+
+@pytest.mark.parametrize(
+    ("host", "url"),
+    [
+        ("127.0.0.1", "http://127.0.0.1:8765/"),
+        ("localhost", "http://localhost:8765/"),
+        ("::1", "http://[::1]:8765/"),
+        ("0.0.0.0", "http://127.0.0.1:8765/"),  # noqa: S104 - the wildcard also listens on loopback
+        ("::", "http://127.0.0.1:8765/"),
+    ],
+)
+def test_control_page_url_where_the_page_can_act(host: str, url: str) -> None:
+    assert control_page(host, 8765) == (url, None)
+
+
+def test_control_page_on_a_non_loopback_address_warns() -> None:
+    url, problem = control_page("192.168.1.5", 8765)
+    assert url == "http://192.168.1.5:8765/"
+    assert problem is not None
+    assert "cannot act on them" in problem
+
+
+@pytest.mark.parametrize("source", [["--demo"], ["--config", "emupos.yaml"]])
+def test_run_passes_the_page_flag_through(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source: list[str]
+) -> None:
+    write_config(tmp_path, unused_port())
+    served: list[bool] = []
+
+    def serve(loaded: object, on_started: object, *, ui: bool) -> None:
+        served.append(ui)
+
+    monkeypatch.setattr("emupos.daemon.server.serve", serve)
+    result = runner.invoke(app, ["run", *source, "--ui"])
+    assert result.exit_code == 0, result.output
+    assert served == [True]

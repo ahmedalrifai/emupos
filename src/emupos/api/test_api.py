@@ -33,7 +33,9 @@ def free_port() -> int:
         return probe.getsockname()[1]
 
 
-def config(tmp_path: Path, printer_port: int, api_port: int = 8765) -> LoadedConfig:
+def config(
+    tmp_path: Path, printer_port: int, api_port: int = 8765, api_host: str = "127.0.0.1"
+) -> LoadedConfig:
     # Link names carry this process's id: the `run` tests publish links in the default directory,
     # where an emupos the developer is running would otherwise own `deli` and refuse to start.
     links = f"test{os.getpid()}"
@@ -43,7 +45,7 @@ def config(tmp_path: Path, printer_port: int, api_port: int = 8765) -> LoadedCon
 """
     text = f"""
 schema: 1
-api: {{ port: {api_port} }}
+api: {{ host: {api_host}, port: {api_port} }}
 devices:
   - {{ id: front, type: printer, profile: epson-tm-t20iii, connections: [ {{ tcp: {{ port: {printer_port} }} }} ], job_idle_timeout_ms: 200 }}
   - {{ id: lane1, type: scanner, mode: keyboard, typed_by: client }}
@@ -63,6 +65,14 @@ async def simulator(tmp_path: Path) -> AsyncIterator[Simulator]:
 @pytest.fixture
 async def api(simulator: Simulator) -> AsyncIterator[httpx.AsyncClient]:
     transport = httpx.ASGITransport(app=create_app(simulator))
+    async with httpx.AsyncClient(transport=transport, base_url=BASE_URL) as client:
+        yield client
+
+
+@pytest.fixture
+async def page_api(simulator: Simulator) -> AsyncIterator[httpx.AsyncClient]:
+    """The API as `emupos run --ui` serves it: with the control page and its origin accepted."""
+    transport = httpx.ASGITransport(app=create_app(simulator, ui=True))
     async with httpx.AsyncClient(transport=transport, base_url=BASE_URL) as client:
         yield client
 
@@ -189,6 +199,109 @@ async def test_form_bodies_are_refused(api: httpx.AsyncClient) -> None:
 
     assert response.status_code == 415
     assert response.json()["error"]["code"] == "unsupported_media_type"
+
+
+# --- the control page and its origin (control-page spec; design D2, D3, D4) -----------------
+
+PAGE_ORIGIN = {"Origin": "http://127.0.0.1:8765", "Host": "127.0.0.1:8765"}
+
+
+async def test_the_page_origin_is_accepted_only_while_the_page_is_served(
+    api: httpx.AsyncClient, page_api: httpx.AsyncClient
+) -> None:
+    refused = await api.put("/api/v1/devices/front/faults/paper-out", headers=PAGE_ORIGIN)
+    accepted = await page_api.put("/api/v1/devices/front/faults/paper-out", headers=PAGE_ORIGIN)
+
+    assert refused.status_code == 403
+    assert refused.json()["error"] == {
+        "code": "browser_request_refused",
+        "message": refused.json()["error"]["message"],
+        "fix": None,
+    }
+    assert accepted.status_code == 204
+    assert (await page_api.get("/api/v1/devices/front")).json()["state"]["faults"] == ["paper-out"]
+
+
+@pytest.mark.parametrize(
+    ("origin", "host"),
+    [
+        ("http://localhost:8069", "127.0.0.1:8765"),  # another local web app
+        ("https://example.com", "127.0.0.1:8765"),
+        ("null", "127.0.0.1:8765"),  # a sandboxed frame or a file:// page
+        ("https://127.0.0.1:8765", "127.0.0.1:8765"),  # the API is never served over TLS
+    ],
+)
+async def test_other_origins_stay_refused_while_the_page_is_served(
+    page_api: httpx.AsyncClient, origin: str, host: str
+) -> None:
+    response = await page_api.post(
+        "/api/v1/devices/front/drawer/close", headers={"Origin": origin, "Host": host}
+    )
+
+    assert response.status_code == 403
+    error = response.json()["error"]
+    assert error["code"] == "browser_request_refused"
+    assert all(name in error["fix"] for name in ("127.0.0.1", "localhost", "[::1]"))
+
+
+async def test_the_page_origin_is_compared_case_insensitively(page_api: httpx.AsyncClient) -> None:
+    headers = {"Origin": "HTTP://LocalHost:8765", "Host": "localhost:8765"}
+    assert (await page_api.get("/api/v1/health", headers=headers)).status_code == 200
+
+
+async def test_rebinding_is_refused_on_a_wildcard_address(tmp_path: Path) -> None:
+    wildcard = Simulator(config(tmp_path, free_port(), api_host="0.0.0.0"), link_dir=tmp_path)  # noqa: S104
+    transport = httpx.ASGITransport(app=create_app(wildcard, ui=True))
+    async with httpx.AsyncClient(transport=transport, base_url=BASE_URL) as client:
+        rebinding = {"Origin": "http://attacker.example:8765", "Host": "attacker.example:8765"}
+        refused = await client.get("/api/v1/health", headers=rebinding)
+        mapped = {"Origin": "http://127.0.0.1:18765", "Host": "127.0.0.1:18765"}  # docker -p
+        accepted = await client.get("/api/v1/health", headers=mapped)
+
+    assert refused.status_code == 403
+    assert refused.json()["error"]["code"] == "browser_request_refused"
+    assert accepted.status_code == 200
+
+
+@pytest.mark.parametrize("ui", [False, True])
+async def test_every_response_forbids_framing_and_sniffing(simulator: Simulator, ui: bool) -> None:
+    transport = httpx.ASGITransport(app=create_app(simulator, ui=ui))
+    async with httpx.AsyncClient(transport=transport, base_url=BASE_URL) as client:
+        ok = await client.get("/api/v1/health")
+        refused = await client.get("/api/v1/health", headers={"Origin": "https://example.com"})
+
+    for response in (ok, refused):
+        assert response.headers["x-content-type-options"] == "nosniff"
+        assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
+
+
+@pytest.mark.parametrize(
+    ("path", "media_type"),
+    [("/", "text/html"), ("/page.js", "text/javascript"), ("/page.css", "text/css")],
+)
+async def test_the_page_files_are_served_with_their_policy(
+    page_api: httpx.AsyncClient, path: str, media_type: str
+) -> None:
+    response = await page_api.get(path)
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith(media_type)
+    assert response.headers["content-security-policy"] == (
+        "default-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    )
+
+
+async def test_no_page_without_the_flag(api: httpx.AsyncClient) -> None:
+    response = await api.get("/")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "not_found"
+    assert "emupos run --ui" in response.json()["error"]["fix"]
+
+
+async def test_the_page_is_not_part_of_the_api_contract(page_api: httpx.AsyncClient) -> None:
+    paths = (await page_api.get("/api/v1/openapi.json")).json()["paths"]
+    assert all(path.startswith("/api/v1/") for path in paths)
 
 
 # --- printer -------------------------------------------------------------------------------
@@ -378,6 +491,32 @@ async def test_browser_websocket_upgrade_is_refused(tmp_path: Path) -> None:
             async with websockets.connect(
                 f"ws://127.0.0.1:{api_port}/api/v1/events",
                 origin=websockets.Origin("https://example.com"),
+            ):
+                pass
+        assert refused.value.response.status_code == 403
+    finally:
+        running.cancel()
+        await asyncio.gather(running, return_exceptions=True)
+
+
+async def test_run_with_the_page_serves_it_and_accepts_its_event_stream(tmp_path: Path) -> None:
+    api_port = free_port()
+    started: asyncio.Future[Simulator] = asyncio.get_running_loop().create_future()
+    loaded = config(tmp_path, free_port(), api_port)
+    running = asyncio.create_task(run(loaded, started.set_result, ui=True))
+    await asyncio.wait_for(started, 5)
+    events = f"ws://127.0.0.1:{api_port}/api/v1/events"
+    try:
+        async with httpx.AsyncClient(base_url=f"http://127.0.0.1:{api_port}") as client:
+            await wait_for_http(client)
+            assert (await client.get("/")).status_code == 200
+        async with websockets.connect(
+            events, origin=websockets.Origin(f"http://127.0.0.1:{api_port}")
+        ):
+            pass  # the page's own origin opens the stream
+        with pytest.raises(websockets.InvalidStatus) as refused:
+            async with websockets.connect(
+                events, origin=websockets.Origin("http://localhost:8069")
             ):
                 pass
         assert refused.value.response.status_code == 403

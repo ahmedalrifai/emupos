@@ -44,6 +44,7 @@ $ emupos run [OPTIONS]
 
 * `--config PATH`: Configuration file. Default: emupos.yaml in the current directory.
 * `--demo`: Use the built-in demo devices instead of a file.
+* `--ui`: Also serve the control page, a web page for the physical actions.
 * `--help`: Show this message and exit.
 
 ## `emupos devices`

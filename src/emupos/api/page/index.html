@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>emupos control page</title>
+<link rel="stylesheet" href="page.css">
+<script type="module" src="page.js"></script>
+</head>
+<body>
+<header class="bar">
+  <div class="bar-in">
+    <span class="wordmark">emupos</span>
+    <span class="sub">Control page</span>
+    <span class="addr" id="address"></span>
+    <span class="pill" id="connection" role="status">Connecting</span>
+  </div>
+</header>
+<main class="wrap">
+  <p class="alert" id="page-alert" role="alert" hidden></p>
+  <div class="grid" id="devices" aria-label="Devices"></div>
+  <section class="card" aria-labelledby="events-title">
+    <div class="card-h">
+      <h2 id="events-title">Events</h2>
+      <p class="note">Newest first, since this page connected</p>
+    </div>
+    <div class="filters" id="filters" role="group" aria-label="Show events of"></div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th scope="col">Time</th><th scope="col">Device</th><th scope="col">Event</th><th scope="col">Details</th></tr></thead>
+        <tbody id="events"><tr class="empty"><td colspan="4">No events yet. They appear here as the POS talks to the devices.</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+  <noscript><p class="alert">The control page needs JavaScript. The emupos CLI does everything this page does.</p></noscript>
+</main>
+<!-- Device icons: the page clones these, so its script needs no SVG namespace. -->
+<template id="icons">
+  <svg data-icon="printer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 8V4h10v4"/><path d="M6 17H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1h-2"/><path d="M7 13h10v7H7z"/></svg>
+  <svg data-icon="scale" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20h14"/><path d="M12 4v16"/><path d="M5 8h14"/><path d="M5 8l-3 6h6z"/><path d="M19 8l-3 6h6z"/></svg>
+  <svg data-icon="scanner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6v12"/><path d="M7 6v12"/><path d="M10.5 6v12"/><path d="M14 6v12"/><path d="M17 6v12"/><path d="M20 6v12"/></svg>
+</template>
+</body>
+</html>

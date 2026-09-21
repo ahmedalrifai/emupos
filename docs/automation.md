@@ -506,8 +506,8 @@ Receipts are written to `receipts/` next to `ci.yaml` unless the printer sets `r
 The control API has no authentication and can type keystrokes when a keyboard-mode scanner is configured. So:
 
 - It listens on `127.0.0.1` by default. Setting `api.host` to another address prints a warning at startup, because any machine that can reach that address could then control the devices.
-- **Web pages are refused.** Any request with an `Origin` header gets 403 `browser_request_refused`, including WebSocket connections. Browsers add `Origin` when a web page sends a request to another site; curl, Python, Node's `fetch` and `WebSocket`, and the emupos CLI do not, so scripts and tests work unchanged.
+- **Web pages are refused.** Any request with an `Origin` header gets 403 `browser_request_refused`, including WebSocket connections. Browsers add `Origin` when a web page sends a request to another site; curl, Python, Node's `fetch` and `WebSocket`, and the emupos CLI do not, so scripts and tests work unchanged. The one exception is emupos's own control page: while `emupos run --ui` serves it, requests from that page, opened through `127.0.0.1`, `localhost` or `[::1]`, are accepted.
 - While the API is on a loopback address, a `Host` header other than `127.0.0.1`, `localhost` or `[::1]` gets 403 `invalid_host`. This blocks DNS rebinding.
 - A request body that is not `application/json` gets 415 `unsupported_media_type`. This blocks HTML form posts.
 
-This is also why a browser-based POS cannot call the API — and, as above, it never should: a POS reaches devices only through their real protocols. See [SECURITY.md](https://github.com/ahmedalrifai/emupos/blob/main/SECURITY.md) for the threat model.
+This is also why a browser-based POS cannot call the API, even while the control page is served — and, as above, it never should: a POS reaches devices only through their real protocols. See [SECURITY.md](https://github.com/ahmedalrifai/emupos/blob/main/SECURITY.md) for the threat model.
