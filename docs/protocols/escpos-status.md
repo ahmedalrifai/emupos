@@ -10,6 +10,7 @@ This page lists the bytes emupos sends back, bit by bit. The bit layouts follow 
 | `GS r` | <https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/gs_lr.html> |
 | `ESC v`, `ESC u` (obsolete status requests) | <https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/esc_lv.html>, <https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/esc_lu.html> |
 | `GS a` (Automatic Status Back) | <https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/gs_la.html> |
+| `GS I` (transmit printer ID) | <https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/gs_ci.html> |
 | `ESC p` (drawer kick) | <https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/esc_lp.html> |
 | `DLE DC4 fn 1` (real-time drawer pulse) | <https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/dle_dc4_fn1.html> |
 
@@ -31,7 +32,7 @@ All bytes on this page are hexadecimal.
 
 While a blocking fault is active, the printer keeps accepting bytes but holds print data and ordinary commands, in order, without printing them. Clearing the last blocking fault processes what was held.
 
-**Real-time commands are never held.** `DLE EOT` and `DLE DC4` are answered as soon as they arrive, even while printing is blocked. `GS r`, `ESC v`, `ESC u`, `GS a` and `ESC p` are ordinary commands: while printing is blocked they wait with the print data. Bytes inside another command's data (for example image data that happens to contain `10 04 01`) are part of that command, never a status request.
+**Real-time commands are never held.** `DLE EOT` and `DLE DC4` are answered as soon as they arrive, even while printing is blocked. `GS r`, `ESC v`, `ESC u`, `GS a`, `GS I` and `ESC p` are ordinary commands: while printing is blocked they wait with the print data. Bytes inside another command's data (for example image data that happens to contain `10 04 01`) are part of that command, never a status request.
 
 ## `DLE EOT n` — real-time status (`10 04 n`)
 
@@ -128,6 +129,29 @@ Older POS software asks for the same bytes with these commands, and emupos answe
 | `ESC u n` (`1b 75 n`), n = 0 or 48 | the drawer byte of `1d 72 02` |
 
 `ESC u` with any other n gets no reply and publishes a `printer.command.unknown` event.
+
+## `GS I n` — transmit printer ID (`1d 49 n`)
+
+POS software and printer drivers send `GS I` to find out which printer they are talking to, and Epson's reference tells the host to wait for the reply before sending more data. The values differ per model, so they come from the device profile. Of the built-in profiles, only `epson-tm-t20iii` carries them; a profile without them answers nothing at all, which is what `rongta-rp326` and `xprinter-xp80t` do until their manuals are read.
+
+On `epson-tm-t20iii`:
+
+| n | Meaning | Reply |
+|---|---|---|
+| 1, 49 | Printer model ID | `63` |
+| 2, 50 | Type ID: bit 1 is the autocutter | `02` |
+| 35 | Column emulation mode, as `3d 23` + the mode + `00` | `3d 23 30 00` (standard column mode) |
+| 65 | Firmware version | `5f 00` |
+| 66 | Maker name | `5f` + `EPSON` + `00` |
+| 67 | Model name | `5f` + `TM-T20III` + `00` |
+| 68 | Serial number | `5f 00` |
+| 69 | Font of the language | `5f 00` |
+
+A simulator has no firmware build, no serial number and no language font, so those three answer `5f 00` — the two bytes a real printer sends for a value it has not been given. Every other n, and every `GS I` to a profile without printer-ID values, gets no reply and publishes a `printer.command.unknown` event.
+
+`GS I` is not a real-time command. While `cover-open`, `paper-out` or `offline` is active, its reply is sent only after the fault is cleared.
+
+To give your own profile these values, see the `printer_id` keys in [configuration](../configuration.md).
 
 ## `GS a n` — Automatic Status Back (`1d 61 n`)
 
@@ -239,6 +263,7 @@ The printer recognises a command by its bytes and consumes it completely, includ
 | `GS V`, `ESC i`, `ESC m` | Ends the receipt (any cut form; `ESC i` and `ESC m` are Epson's obsolete partial cuts) |
 | `ESC p`, `DLE DC4 fn 1` | Opens the drawer |
 | `DLE EOT n` (n = 1–4), `GS r n` (n = 1, 2, 49, 50), `ESC v`, `ESC u n` (n = 0, 48), `GS a n` | Status replies, as described above |
+| `GS I n` | The printer's identity, when the profile carries it (see above) |
 
 The code pages the built-in profiles name have glyphs: PC437, PC850, PC852, PC858, PC860, PC863, PC865, PC866, WPC1252, PC720, PC864 and WPC1256. Selecting a number missing from the profile, or a code page emupos has no glyph table for, publishes `printer.codepage.unsupported`, and bytes `80`–`ff` then print as a placeholder that fills one character cell. A single byte without a glyph inside a code page that has a table prints the same placeholder, without an event. Bytes `20`–`7e` always print as ASCII. The receipt's text dump shows the real characters for code pages emupos has a character mapping for (PC720, PC864 and WPC1256 among them), and U+FFFD otherwise.
 
@@ -256,7 +281,6 @@ These are recognised and consumed in full, but not simulated. Each one publishes
 - page mode: `ESC L` (the printer stays in standard mode), `ESC T`, `ESC W`, `GS $`, `GS \`
 - NV graphics and other function commands: `GS ( L` / `GS 8 L` functions other than 48, 50, 51 and 112, other `GS (` commands, `ESC (`, `FS (`
 - stored logos and bit images: `FS p`, `GS *`, `GS /` (nothing is printed)
-- `GS I` (no reply is sent)
 - `GS ( k` symbols other than QR codes, such as PDF417
 - `GS k` in other symbologies (UPC-E, CODABAR, CODE93, GS1-128, GS1 DataBar, CODE128 with m = 79); the event names the symbology
 - `DLE ENQ`, `DLE DC4` functions other than 1, `DLE EOT`, `GS r` and `ESC u` with other values of n

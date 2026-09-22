@@ -242,6 +242,71 @@ def test_obsolete_status_requests_reply_like_gs_r() -> None:
     assert unknown.data == {"bytes": "1b 75 01", "command": "ESC u"}
 
 
+# --- GS I transmit printer ID -----------------------------------------------------------------
+
+
+def test_printer_id_replies_come_from_the_profile() -> None:
+    pos = Pos()  # epson-tm-t20iii: model 63h, autocutter installed, answers n = 35
+
+    # n = 1, 49 (model ID), 2, 50 (type ID), 35 (column emulation mode), 66, 67 (maker, model)
+    pos.send("1d 49 01 1d 49 31 1d 49 02 1d 49 32 1d 49 23 1d 49 42 1d 49 43")
+
+    assert pos.take() == bytes.fromhex(
+        "63 63 02 02 3d 23 30 00 5f 45 50 53 4f 4e 00 5f 54 4d 2d 54 32 30 49 49 49 00"
+    )
+    assert pos.events_of(EventType.PRINTER_COMMAND_UNKNOWN) == []
+
+
+def test_printer_id_without_a_value_sends_the_header_and_nul() -> None:
+    pos = Pos()
+
+    pos.send("1d 49 41 1d 49 44 1d 49 45")  # firmware version, serial number, language font
+
+    assert pos.take() == bytes.fromhex("5f 00 5f 00 5f 00")
+    assert pos.events_of(EventType.PRINTER_COMMAND_UNKNOWN) == []
+
+
+def test_printer_id_is_unknown_for_an_n_the_model_does_not_accept() -> None:
+    pos = Pos()
+
+    pos.send("1d 49 03")  # the TM-T20III has no version ID
+
+    assert pos.take() == b""
+    [unknown] = pos.events_of(EventType.PRINTER_COMMAND_UNKNOWN)
+    assert unknown.data == {"bytes": "1d 49 03", "command": "GS I"}
+
+
+def test_printer_id_is_unknown_on_a_profile_without_values() -> None:
+    pos = Pos("rongta-rp326")
+
+    pos.send("1d 49 01")
+
+    assert pos.take() == b""
+    [unknown] = pos.events_of(EventType.PRINTER_COMMAND_UNKNOWN)
+    assert unknown.data == {"bytes": "1d 49 01", "command": "GS I"}
+
+
+def test_printer_id_waits_behind_a_blocking_fault() -> None:
+    pos = Pos()
+    pos.set_fault("paper-out")
+
+    pos.send("1d 49 01")
+    while_blocked = pos.take()
+    pos.set_fault("paper-out", active=False)
+
+    assert while_blocked == b""
+    assert pos.take() == bytes.fromhex("63")
+
+
+def test_printer_id_goes_only_to_the_connection_that_asked() -> None:
+    pos = Pos(connections=("A", "B"))
+
+    pos.send("1d 49 01", "A")
+
+    assert pos.take("A") == bytes.fromhex("63")
+    assert pos.take("B") == b""
+
+
 # --- Supported print commands -----------------------------------------------------------------
 
 

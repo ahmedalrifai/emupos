@@ -1,16 +1,20 @@
-"""Status bytes a printer sends: DLE EOT, GS r and Automatic Status Back (GS a).
+"""Status bytes a printer sends: DLE EOT, GS r, Automatic Status Back (GS a) and GS I.
 
-Every reply is computed from one `StatusState` snapshot (design D6), with the bit layouts of
-the Epson ESC/POS Command Reference for TM printers:
+Every status reply is computed from one `StatusState` snapshot (design D6), and the GS I reply
+from the profile's printer-ID values, with the layouts of the Epson ESC/POS Command Reference
+for TM printers:
 - DLE EOT: https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/dle_eot.html
 - GS r:    https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/gs_lr.html
 - GS a:    https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/gs_la.html
+- GS I:    https://download4.epson.biz/sec_pubs/pos/reference_en/escpos/gs_ci.html
 Bits the simulator never sets (paper feed button, cutter and unrecoverable errors, ...) are
 listed so the tables read like the manual.
 """
 
 from dataclasses import dataclass
 from enum import IntFlag
+
+from emupos.config import PrinterId
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,6 +120,54 @@ def gs_r(n: int, state: StatusState) -> bytes | None:
         case _:
             return None
     return bytes([status])
+
+
+# --- GS I n: the printer's identity -------------------------------------------------------
+
+INFORMATION_A_HEADER = 0x3D
+INFORMATION_B_HEADER = 0x5F
+STANDARD_COLUMN_MODE = b"0"  # emupos renders the profile's width_dots, never a 42-column mode
+
+
+class TypeId(IntFlag):  # n = 2, 50
+    AUTOCUTTER_INSTALLED = 0x02
+
+
+def gs_i(n: int, printer_id: PrinterId | None) -> bytes | None:
+    """The reply to GS I n, or None when the profile has no value for it.
+
+    None means the caller reports GS I as an unknown command, which covers both a profile with
+    no printer-ID values at all and an n this model does not accept.
+    """
+    if printer_id is None:
+        return None
+    match n:
+        case 1 | 49:  # printer model ID, one byte
+            return bytes([printer_id.model])
+        case 2 | 50:  # type ID, one byte; the other bits are reserved or fixed at 0
+            return bytes([TypeId.AUTOCUTTER_INSTALLED if printer_id.autocutter else 0])
+        case 35 if printer_id.column_emulation_mode:  # printer information A
+            return _information_a(n, STANDARD_COLUMN_MODE)
+        case 66:  # printer information B: maker name
+            return _information_b(printer_id.maker.encode("ascii"))
+        case 67:  # model name
+            return _information_b(printer_id.name.encode("ascii"))
+        case 65 | 68 | 69:
+            # Firmware version, serial number and language font: a simulator has none, and a
+            # printer with no value prepared sends the header and NUL alone.
+            return _information_b(b"")
+        case _:
+            return None
+
+
+def _information_a(n: int, data: bytes) -> bytes:
+    """Header, identifier (= n), data, NUL."""
+    return bytes([INFORMATION_A_HEADER, n]) + data + b"\x00"
+
+
+def _information_b(data: bytes) -> bytes:
+    """Header, data, NUL."""
+    return bytes([INFORMATION_B_HEADER]) + data + b"\x00"
 
 
 # --- Automatic Status Back: four bytes ----------------------------------------------------

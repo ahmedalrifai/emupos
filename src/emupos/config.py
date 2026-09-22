@@ -67,6 +67,9 @@ class _StrictModel(BaseModel):
 
 Port = Annotated[int, Field(ge=1, le=65535)]
 Level = Literal["high", "low"]
+# Text a device sends back on the wire as bytes, so printable ASCII only.
+ASCII_TEXT_PATTERN = r"^[\x20-\x7e]+$"
+AsciiText = Annotated[str, Field(min_length=1, pattern=ASCII_TEXT_PATTERN)]
 
 
 class SerialFraming(_StrictModel):
@@ -85,6 +88,16 @@ class FontCell(_StrictModel):
     height: Annotated[int, Field(ge=1)]
 
 
+class PrinterId(_StrictModel):
+    """What a model reports to GS I (transmit printer ID). The values differ per model."""
+
+    model: Annotated[int, Field(ge=0, le=255)]  # printer model ID, n = 1, 49
+    autocutter: bool  # type ID (n = 2, 50) bit 1
+    maker: AsciiText  # n = 66
+    name: AsciiText  # model name, n = 67. Not `model_name`: Pydantic reserves the `model_` prefix
+    column_emulation_mode: bool = False  # whether the model answers n = 35
+
+
 class PrinterProfile(_StrictModel):
     type: Literal["printer"]
     name: str
@@ -95,6 +108,7 @@ class PrinterProfile(_StrictModel):
     code_pages: dict[int, str]  # ESC t number -> code page name, e.g. 37: PC864
     default_code_page: int
     drawer_sensor_open_level: Level
+    printer_id: PrinterId | None = None  # absent: the printer sends no reply to GS I
     serial: SerialFraming | None = None
 
     @model_validator(mode="after")
@@ -395,6 +409,8 @@ def _friendly_message(detail: ErrorDetails) -> str:
         return "required key is missing"
     if kind in {"int_type", "int_parsing"}:
         return "an integer is required"
+    if kind == "string_pattern_mismatch" and context.get("pattern") == ASCII_TEXT_PATTERN:
+        return "printable ASCII is required, because the device sends this text on the wire"
     if kind in {"greater_than_equal", "less_than_equal"} and field == "port":
         return "a port from 1 to 65535 is expected"
     if kind in {"union_tag_invalid", "union_tag_not_found"}:
