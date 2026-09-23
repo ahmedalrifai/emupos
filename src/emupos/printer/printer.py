@@ -214,6 +214,12 @@ class Printer:
                     if (reply := status.gs_r(n, self._status())) is not None:
                         self._write(connection, reply, out)
                         return
+                case "GS I":  # gs_ci: the identity the profile gives, held like other print data
+                    if (
+                        reply := status.gs_i(token.params[0], self._profile.printer_id)
+                    ) is not None:
+                        self._write(connection, reply, out)
+                        return
                 case "GS a":  # gs_la: enabling sends the current status at once
                     connection.asb = token.params[0]
                     if connection.asb:

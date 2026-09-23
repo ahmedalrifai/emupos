@@ -143,7 +143,18 @@ To use your own, set `profile` to a path (any value containing `/` or ending in 
 | `code_pages` | Map from the `ESC t` number to the code page name, e.g. `37: PC864` |
 | `default_code_page` | Number selected after `ESC @`; must be in `code_pages` |
 | `drawer_sensor_open_level` | `high` or `low` |
+| `printer_id` | Optional. What the printer answers to `GS I`; left out, it answers nothing |
 | `serial` | `{ baud, data_bits, parity, stop_bits }`, needed for serial connections |
+
+`printer_id` keys, all taken from the model's programming manual — see [ESC/POS status replies](protocols/escpos-status.md) for the bytes they produce:
+
+| Key | Meaning |
+|---|---|
+| `model` | Printer model ID, 0–255, e.g. `0x63` for a TM-T20III |
+| `autocutter` | Whether an autocutter is installed; it sets bit 1 of the type ID |
+| `maker` | Maker name, printable ASCII, e.g. `EPSON` |
+| `name` | Model name, printable ASCII, e.g. `TM-T20III` |
+| `column_emulation_mode` | Optional, default `false`. Whether the model answers `GS I 35` |
 
 ### Scale profile keys
 

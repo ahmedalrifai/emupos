@@ -281,6 +281,44 @@ def test_user_provided_profile(tmp_path: Path) -> None:
     assert loaded.printer_profile("front").width_dots == 512
 
 
+def test_printer_id_values_are_optional(tmp_path: Path) -> None:
+    profiles = tmp_path / "profiles"
+    profiles.mkdir()
+    builtin = parse(f"schema: 1\ndevices: [ {PRINTER} ]\n").printer_profile("front")
+    custom = builtin.model_dump() | {"name": "My 80mm", "printer_id": None}
+    (profiles / "my-80mm.yaml").write_text(yaml.safe_dump(custom))
+
+    text = "schema: 1\ndevices: [ { id: front, type: printer, profile: ./profiles/my-80mm.yaml, connections: [ { tcp: { port: 9100 } } ] } ]\n"
+    loaded = parse(text, base_dir=tmp_path)
+
+    assert loaded.printer_profile("front").printer_id is None
+
+
+@pytest.mark.parametrize(
+    ("change", "expected"),
+    [({"model": 256}, "model"), ({"name": "TM-Ω"}, "name"), ({"maker": ""}, "maker")],
+)
+def test_printer_id_rejects_values_it_cannot_send(
+    tmp_path: Path, change: dict[str, object], expected: str
+) -> None:
+    profiles = tmp_path / "profiles"
+    profiles.mkdir()
+    builtin = parse(f"schema: 1\ndevices: [ {PRINTER} ]\n").printer_profile("front")
+    assert builtin.printer_id is not None
+    custom = builtin.model_dump() | {"printer_id": builtin.printer_id.model_dump() | change}
+    # Written as UTF-8 explicitly: the non-ASCII case cannot be encoded in the locale encoding
+    # Windows uses by default, and the loader reads profiles as UTF-8.
+    (profiles / "my-80mm.yaml").write_text(
+        yaml.safe_dump(custom, allow_unicode=True), encoding="utf-8"
+    )
+    text = "schema: 1\ndevices: [ { id: front, type: printer, profile: ./profiles/my-80mm.yaml, connections: [ { tcp: { port: 9100 } } ] } ]\n"
+
+    with pytest.raises(ConfigError) as error:
+        parse(text, base_dir=tmp_path)
+
+    assert f"printer_id.{expected}" in str(error.value)
+
+
 def test_invalid_user_provided_profile_names_file_and_key(tmp_path: Path) -> None:
     (tmp_path / "profiles").mkdir()
     (tmp_path / "profiles" / "my-80mm.yaml").write_text("type: printer\nname: broken\n")
