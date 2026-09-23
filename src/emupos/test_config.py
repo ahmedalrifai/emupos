@@ -306,7 +306,11 @@ def test_printer_id_rejects_values_it_cannot_send(
     builtin = parse(f"schema: 1\ndevices: [ {PRINTER} ]\n").printer_profile("front")
     assert builtin.printer_id is not None
     custom = builtin.model_dump() | {"printer_id": builtin.printer_id.model_dump() | change}
-    (profiles / "my-80mm.yaml").write_text(yaml.safe_dump(custom, allow_unicode=True))
+    # Written as UTF-8 explicitly: the non-ASCII case cannot be encoded in the locale encoding
+    # Windows uses by default, and the loader reads profiles as UTF-8.
+    (profiles / "my-80mm.yaml").write_text(
+        yaml.safe_dump(custom, allow_unicode=True), encoding="utf-8"
+    )
     text = "schema: 1\ndevices: [ { id: front, type: printer, profile: ./profiles/my-80mm.yaml, connections: [ { tcp: { port: 9100 } } ] } ]\n"
 
     with pytest.raises(ConfigError) as error:
