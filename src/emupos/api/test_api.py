@@ -146,6 +146,8 @@ async def test_devices_are_listed_with_endpoints_and_state(
     assert devices["front"]["connections"][0]["endpoint"] == f"127.0.0.1:{printer_port(simulator)}"
     if POSIX:
         assert devices["deli"]["state"]["capacity_grams"] == 15000
+        # `deli` speaks Toledo 8217, which has no unit of measure to report.
+        assert devices["deli"]["state"]["unit"] is None
         assert devices["deli"]["connections"][0]["link_path"].endswith(
             f"links/test{os.getpid()}-deli"
         )

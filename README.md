@@ -27,7 +27,7 @@ emupos sits between two things, and they never mix:
 
 - **Receipt printer** — ESC/POS over raw TCP and, on macOS and Linux, over a serial port. Every receipt is rendered as a PNG image and a text dump, at the dot width of the profile. Real status replies (`DLE EOT`, `GS r`, Automatic Status Back) and faults: paper near end, paper out, cover open, off-line. Profiles: Epson TM-T20III, Xprinter XP-80T, Rongta RP326.
 - **Cash drawer** — one per printer, opened by the POS with `ESC p` or `DLE DC4`, seen through the printer's status replies.
-- **Weight scale** — Mettler Toledo 8217 over a serial port: stable and moving readings, zero, tare, over capacity and under zero.
+- **Weight scale** — Mettler Toledo 8217 or the SMA protocol over a serial port: stable and moving readings, zero, tare, over capacity and under zero. SMA adds units, a continuous weight and the About dialogue.
 - **Barcode scanner** — keyboard mode types each scan into the focused window like a USB wedge scanner; serial mode writes scans to a serial port.
 - **Weighed-item barcodes** — the weight- and price-embedded EAN-13 barcodes that label scales print.
 

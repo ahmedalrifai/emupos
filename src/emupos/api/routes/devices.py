@@ -44,12 +44,15 @@ def _state(device: Printer | Scale | Scanner, now: float) -> dict[str, object]:
             return {"faults": list(state.faults), "drawer": state.drawer}
         case Scale():
             weight = device.state(now)
+            unit = device.unit()
             return {
                 "grams": weight.grams,
                 "tare_grams": weight.tare_grams,
                 "net_grams": weight.net_grams,
                 "stable": weight.stable,
                 "capacity_grams": weight.capacity_grams,
+                # The unit the scale reports in, or null for a protocol without units.
+                "unit": None if unit is None else unit.unit,
             }
         case Scanner():
             return {

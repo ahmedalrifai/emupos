@@ -37,6 +37,7 @@ nav = [
     "cli.md",
     "protocols/escpos-status.md",
     "protocols/toledo8217.md",
+    "protocols/sma.md",
   ] },
   { "Maintainer notes" = [
     { "Keyboard scanning checklist" = "keyboard-scanning-checklist.md" },

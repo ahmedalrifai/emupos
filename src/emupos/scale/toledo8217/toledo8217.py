@@ -19,10 +19,10 @@ from decimal import ROUND_HALF_UP, Decimal
 from enum import IntFlag
 from typing import TYPE_CHECKING
 
-from emupos.config import ScaleProfile
+from emupos.config import Toledo8217Profile
 
-if TYPE_CHECKING:  # scale.py imports this module to register the protocol
-    from emupos.scale.scale import ScaleState
+if TYPE_CHECKING:  # scale.py imports this module to build the protocol of a connection
+    from emupos.scale.scale import ScaleReading, ScaleState
 
 STX = 0x02
 CR = 0x0D
@@ -76,7 +76,7 @@ def status_reply(flags: Status) -> bytes:
     return bytes([STX, ord("?"), flags, CR])
 
 
-def kilograms(grams: int, profile: ScaleProfile) -> str:
+def kilograms(grams: int, profile: Toledo8217Profile) -> str:
     """Grams as the kilogram text of a weight reply, e.g. 1250 g -> `01.250` (never truncated)."""
     divisions = (Decimal(grams) / profile.division_grams).quantize(Decimal(1), ROUND_HALF_UP)
     decimals = profile.reply_decimals
@@ -86,7 +86,7 @@ def kilograms(grams: int, profile: ScaleProfile) -> str:
     return f"{value:0{width}f}"
 
 
-def weight_reply(state: ScaleState, profile: ScaleProfile) -> bytes:
+def weight_reply(state: ScaleState, profile: Toledo8217Profile) -> bytes:
     """The reply to `W`: the weight when it can be reported, a status reply otherwise."""
     flags = status(state)
     if flags & NOT_REPORTABLE:
@@ -100,16 +100,24 @@ def weight_reply(state: ScaleState, profile: ScaleProfile) -> bytes:
 class Toledo8217:
     """Protocol state of one connection: echo mode is per connection."""
 
-    def __init__(self, profile: ScaleProfile) -> None:
+    def __init__(self, profile: Toledo8217Profile) -> None:
         self._profile = profile
         self._echoing = False
 
-    def receive(self, data: bytes, state: ScaleState) -> tuple[bytes, list[tuple[bytes, bytes]]]:
+    def next_deadline(self) -> float | None:
+        """Toledo 8217 only ever answers what it is asked."""
+        return None
+
+    def due(self, now: float, ops: ScaleReading) -> bytes:
+        return b""
+
+    def receive(self, data: bytes, ops: ScaleReading) -> tuple[bytes, list[tuple[bytes, bytes]]]:
         """Handle received bytes one at a time.
 
         Returns the bytes to write and a `(request, reply)` pair for every answered request.
         Echoed bytes are written but are not answered requests ("Request events").
         """
+        state = ops.state()
         written = bytearray()
         answers: list[tuple[bytes, bytes]] = []
         for byte in data:

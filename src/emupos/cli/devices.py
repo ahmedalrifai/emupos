@@ -49,6 +49,10 @@ def state_text(device: dict[str, Any]) -> str:
                 text += (
                     f", tare {kilograms(state['tare_grams'])}, net {kilograms(state['net_grams'])}"
                 )
+            # Weights are shown in kilograms whatever the scale reports in, so name the unit the
+            # POS reads: a host can switch it over the protocol, without anyone touching emupos.
+            if state.get("unit"):
+                text += f", reporting {state['unit']}"
             return text
         case "scanner":
             text = f"{state['mode']} mode, suffix {state['suffix']}, {state['inter_key_delay_ms']} ms between keys"

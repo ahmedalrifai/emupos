@@ -134,7 +134,7 @@ Receipt metadata:
 
 `boundary` says what ended the receipt: `cut`, `connection-closed` or `idle-timeout` (no bytes for `job_idle_timeout_ms`, 2 s by default).
 
-Faults, the drawer and receipts are described byte by byte in [protocols/escpos-status.md](protocols/escpos-status.md); the scale in [protocols/toledo8217.md](protocols/toledo8217.md).
+Faults, the drawer and receipts are described byte by byte in [protocols/escpos-status.md](protocols/escpos-status.md); the scale in [protocols/toledo8217.md](protocols/toledo8217.md) and [protocols/sma.md](protocols/sma.md).
 
 ## Errors
 
