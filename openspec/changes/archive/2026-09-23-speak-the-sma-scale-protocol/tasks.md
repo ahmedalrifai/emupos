@@ -53,4 +53,4 @@
 - [x] 7.3 `README.md` and `docs/README.md` where the simulated protocols are listed.
 - [x] 7.4 Keep the commit and PR free of a breaking-change marker: no existing profile or API changes, so this is a `feat(scale):` and the release stays on a minor bump.
 - [x] 7.5 Update the `weight-scale` spec's Purpose line, which names only the Toledo protocol, and archive the change with `openspec archive speak-the-sma-scale-protocol` in the implementation commit.
-- [ ] 7.6 Comment on #21 that SMA is implemented and NCI still needs a public document, so the issue can be split or closed.
+- [x] 7.6 Comment on #21 that SMA is implemented and NCI still needs a public document, so the issue can be split or closed.
