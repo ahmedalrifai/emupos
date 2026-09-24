@@ -236,7 +236,11 @@ function scaleCard(device) {
   const tare = el("dd", {});
   const gross = el("dd", {});
   const capacity = el("dd", {});
+  const unit = el("dd", {});
   const stat = (name, value) => el("div", { class: "stat" }, el("dt", {}, name), value);
+  // Weights are shown in kilograms whatever the scale reports in, so name the unit the POS reads.
+  // A protocol without units (Toledo 8217) reports none, and the stat stays hidden.
+  const unitStat = stat("Reporting", unit);
   const grams = el("input", { inputmode: "numeric", autocomplete: "off", placeholder: "1250", "aria-label": `Weight on ${device.id}, in grams` });
   const moving = el("input", { type: "checkbox" });
   const set = el("button", { type: "submit", class: "btn" }, "Set weight");
@@ -263,7 +267,7 @@ function scaleCard(device) {
   const node = card(device, pill, [
     el("div", { class: "meta" }, where(device)),
     el("div", { class: "value" }, net, el("span", {}, "kg net")),
-    el("dl", { class: "stats" }, stat("Tare", tare), stat("Gross", gross), stat("Capacity", capacity)),
+    el("dl", { class: "stats" }, stat("Tare", tare), stat("Gross", gross), stat("Capacity", capacity), unitStat),
     el("div", { class: "divider" }),
     form,
     el("label", { class: "check" }, moving, "Reading still moving"),
@@ -277,6 +281,8 @@ function scaleCard(device) {
       tare.textContent = `${kg(state.tare_grams)} kg`;
       gross.textContent = `${kg(state.grams)} kg`;
       capacity.textContent = `${state.capacity_grams / 1000} kg`;
+      unit.textContent = state.unit ?? "";
+      unitStat.hidden = !state.unit;
       const [kind, text] =
         state.grams > state.capacity_grams
           ? ["bad", "Over capacity"]

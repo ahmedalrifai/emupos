@@ -121,7 +121,7 @@ uv run --no-project --with pyserial python -c "import serial; s = serial.Serial(
 b'\x0201.250\r'
 ```
 
-The protocol is described in [protocols/toledo8217.md](protocols/toledo8217.md).
+The protocol is described in [protocols/toledo8217.md](protocols/toledo8217.md). A scale using the `sma-15kg` profile speaks the SMA protocol instead: [protocols/sma.md](protocols/sma.md).
 
 ## 7. Scan a barcode (optional)
 

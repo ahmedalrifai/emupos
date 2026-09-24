@@ -1,0 +1,25 @@
+# Counter scale speaking the SMA serial protocol, 15 kg x 5 g.
+# Protocol: SMA SCP-0499, "Scale Serial Communication Protocol, Levels #1 and #2",
+# Scale Manufacturers Association, April 1999 (Mod 1, November 2005).
+type: scale
+name: SMA compatible, 15 kg
+protocol: sma
+capacity_grams: 15000
+division_grams: 5
+settle_ms: 500
+# Units the unit key cycles, in order. The first is the unit after start.
+# `count_by` is the least significant digit it counts by, as the SMA CAP field gives it:
+# 5 with 3 decimals is 0.005 kg, and 1 with 2 decimals is 0.01 lb.
+units:
+  - { unit: kg_, decimals: 3, count_by: 5 }
+  - { unit: lb_, decimals: 2, count_by: 1 }
+# What the scale says about itself in the About dialogue (A and B commands). The maker is emupos
+# because this is a simulated scale, not an imitation of a particular vendor's model.
+maker: emupos
+model: SMA 15kg
+revision: "1.0"
+# How often R and S repeat the weight. The standard says "continuously" without a rate, so this is
+# the knob to turn when a POS's timing assumptions matter.
+repeat_interval_ms: 200
+# Match the scale's configured serial interface settings.
+serial: { baud: 9600, data_bits: 8, parity: none, stop_bits: 1 }

@@ -42,7 +42,7 @@ emupos sits between two things, and they never mix:
 |---|---|
 | **Receipt printer** | Accepts ESC/POS over raw TCP (port 9100 in the demo) and, on macOS and Linux, over a serial port. Renders every receipt as a PNG image and a text dump: text styles and sizes, raster and bit images, barcodes and QR codes, at the dot width of the printer profile. Answers `DLE EOT`, `GS r` and Automatic Status Back from its real state. Faults: `paper-near-end`, `paper-out`, `cover-open`, `offline`. Profiles: Epson TM-T20III, Xprinter XP-80T, Rongta RP326 (all 80 mm). |
 | **Cash drawer** | One per printer. Opened by the POS with `ESC p` or `DLE DC4`; stays open until you close it. The POS sees it through the printer's status replies, with a configurable sensor level. |
-| **Weight scale** | Speaks Mettler Toledo 8217 on a serial port (macOS and Linux). Stable and moving readings, zero, tare, over capacity and under zero. Profile: 15 kg × 5 g. |
+| **Weight scale** | Speaks Mettler Toledo 8217 or the SMA protocol on a serial port (macOS and Linux). Stable and moving readings, zero, tare, over capacity and under zero. Profiles: 15 kg × 5 g of each. |
 | **Barcode scanner** | Keyboard mode types each scan into the focused window, like a USB keyboard-wedge scanner (macOS, and Linux on X11). Serial mode writes scans to a serial port (macOS and Linux). |
 | **Weighed-item barcodes** | Generates the weight- or price-embedded EAN-13 barcodes that label scales print, from layouts such as `21IIIIIWWWWWC`. |
 

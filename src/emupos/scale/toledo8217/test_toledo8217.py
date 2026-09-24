@@ -25,11 +25,28 @@ import yaml
 from hypothesis import given
 from hypothesis import strategies as st
 
-from emupos.config import ScaleProfile
+from emupos.config import Toledo8217Profile
 from emupos.scale.scale import Scale, ScaleState
 from emupos.scale.toledo8217.toledo8217 import Status, Toledo8217, kilograms, status, weight_reply
 
-PROFILE = ScaleProfile.model_validate(
+
+class Reading:
+    """The little a Toledo protocol asks of a scale: the reading in front of it."""
+
+    def __init__(self, scale_state: ScaleState) -> None:
+        self._state = scale_state
+
+    def now(self) -> float:
+        return 0.0
+
+    def state(self) -> ScaleState:
+        return self._state
+
+    def unit(self) -> None:
+        return None  # the Toledo protocol has no unit of measure
+
+
+PROFILE = Toledo8217Profile.model_validate(
     yaml.safe_load(
         resources.files("emupos").joinpath("profiles/scales/toledo8217-15kg.yaml").read_text()
     )
@@ -141,7 +158,7 @@ def test_status_replies_match_the_client_pattern(scale_state: ScaleState, bits: 
 
 
 def test_bad_command_status_matches_the_client_pattern() -> None:
-    written, _ = Toledo8217(PROFILE).receive(b"X", state(1250))
+    written, _ = Toledo8217(PROFILE).receive(b"X", Reading(state(1250)))
 
     match = STATUS.fullmatch(written)
     assert match is not None
@@ -186,21 +203,21 @@ streams = st.lists(st.one_of(handled_bytes, st.integers(0, 255)), max_size=64).m
 
 @given(scale_state=states, data=streams)
 def test_random_bytes_never_raise(scale_state: ScaleState, data: bytes) -> None:
-    Toledo8217(PROFILE).receive(data, scale_state)
+    Toledo8217(PROFILE).receive(data, Reading(scale_state))
 
 
 @given(scale_state=states, data=streams, cuts=st.lists(st.integers(0, 64), max_size=8))
 def test_any_split_of_a_byte_stream_gives_the_same_replies(
     scale_state: ScaleState, data: bytes, cuts: list[int]
 ) -> None:
-    whole = Toledo8217(PROFILE).receive(data, scale_state)
+    whole = Toledo8217(PROFILE).receive(data, Reading(scale_state))
 
     protocol = Toledo8217(PROFILE)
     written = b""
     answers: list[tuple[bytes, bytes]] = []
     points = sorted({min(cut, len(data)) for cut in cuts})
     for start, end in zip([0, *points], [*points, len(data)], strict=True):
-        chunk_written, chunk_answers = protocol.receive(data[start:end], scale_state)
+        chunk_written, chunk_answers = protocol.receive(data[start:end], Reading(scale_state))
         written += chunk_written
         answers += chunk_answers
 
@@ -209,7 +226,7 @@ def test_any_split_of_a_byte_stream_gives_the_same_replies(
 
 @given(scale_state=states, data=streams)
 def test_replies_outside_the_echo_probe_are_7_bit(scale_state: ScaleState, data: bytes) -> None:
-    written, answers = Toledo8217(PROFILE).receive(data.replace(b"E", b""), scale_state)
+    written, answers = Toledo8217(PROFILE).receive(data.replace(b"E", b""), Reading(scale_state))
 
     assert all(byte < 0x80 for byte in written)
     assert b"".join(reply for _, reply in answers) == written

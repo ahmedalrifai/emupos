@@ -18,6 +18,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    TypeAdapter,
     ValidationError,
     ValidationInfo,
     field_validator,
@@ -28,6 +29,8 @@ from pydantic_core import ErrorDetails
 SUPPORTED_SCHEMA = 1
 DEFAULT_CONFIG_FILE = "emupos.yaml"
 DEVICE_TYPES = ("printer", "scale", "scanner")
+# The discriminator values of the profile unions, which Pydantic reports as a path element.
+PROFILE_TAGS = ("toledo8217", "sma")
 
 # ---------------------------------------------------------------------------------------------
 # Errors
@@ -70,6 +73,9 @@ Level = Literal["high", "low"]
 # Text a device sends back on the wire as bytes, so printable ASCII only.
 ASCII_TEXT_PATTERN = r"^[\x20-\x7e]+$"
 AsciiText = Annotated[str, Field(min_length=1, pattern=ASCII_TEXT_PATTERN)]
+# Units of measure from SMA SCP-0499 section 7 that emupos can convert and report. The composite
+# lb/oz form `l/o` is not among them: it is written as two numbers, which nothing here needs yet.
+SmaUnit = Literal["kg_", "g__", "mg_", "lb_", "oz_", "ozt", "ct_", "gn_", "dwt", "t__", "ton"]
 
 
 class SerialFraming(_StrictModel):
@@ -118,18 +124,53 @@ class PrinterProfile(_StrictModel):
         return self
 
 
+class ScaleUnit(_StrictModel):
+    """One unit of measure a scale can report in, as SMA SCP-0499 section 7 names them."""
+
+    unit: SmaUnit
+    decimals: Annotated[int, Field(ge=0, le=6)]
+    count_by: Annotated[int, Field(ge=1)]  # in the last decimal place, as the SMA CAP field gives
+
+
 class ScaleProfile(_StrictModel):
+    """Fields every scale profile has, whatever protocol it speaks."""
+
     type: Literal["scale"]
     name: str
-    protocol: Literal["toledo8217"]
     capacity_grams: Annotated[int, Field(ge=1)]
     division_grams: Annotated[int, Field(ge=1)]
-    reply_integer_digits: Annotated[int, Field(ge=1)]
-    reply_decimals: Annotated[int, Field(ge=0)]
     settle_ms: Annotated[int, Field(ge=0)]
     serial: SerialFraming
 
 
+class Toledo8217Profile(ScaleProfile):
+    """A scale speaking Mettler Toledo 8217. Its keys are where they have always been."""
+
+    protocol: Literal["toledo8217"]
+    reply_integer_digits: Annotated[int, Field(ge=1)]
+    reply_decimals: Annotated[int, Field(ge=0)]
+
+
+class SmaProfile(ScaleProfile):
+    """A scale speaking SMA SCP-0499: units it offers, what it says about itself, its repeat rate."""
+
+    protocol: Literal["sma"]
+    units: Annotated[list[ScaleUnit], Field(min_length=1)]  # the first is the unit after start
+    maker: AsciiText  # About: MFG
+    model: AsciiText  # About: MOD
+    revision: AsciiText  # About: REV
+    serial_number: AsciiText | None = None  # About: SN_, which the standard lets a scale leave out
+    repeat_interval_ms: Annotated[int, Field(ge=1)] = 200  # between repeats of R and S
+
+    @model_validator(mode="after")
+    def _units_are_distinct(self) -> Self:
+        seen = [entry.unit for entry in self.units]
+        if len(set(seen)) != len(seen):
+            raise ValueError("each unit may be listed only once")
+        return self
+
+
+AnyScaleProfile = Annotated[Toledo8217Profile | SmaProfile, Field(discriminator="protocol")]
 type Profile = PrinterProfile | ScaleProfile
 
 # ---------------------------------------------------------------------------------------------
@@ -389,7 +430,9 @@ def _format_path(loc: tuple[int | str, ...]) -> str:
     for part in loc:
         if isinstance(part, int):
             path += f"[{part}]"
-        elif isinstance(previous, int) and part in DEVICE_TYPES:
+        elif (isinstance(previous, int) and part in DEVICE_TYPES) or (
+            not path and part in PROFILE_TAGS
+        ):
             pass  # discriminated-union tag inserted by Pydantic, not a key in the file
         elif part in {"function-after", "tagged-union"}:
             pass
@@ -496,9 +539,9 @@ def _load_profile(reference: str, device_type: str, base_dir: Path) -> Profile:
 def _parse_profile(text: str, source: str) -> Profile:
     raw = _load_yaml(text, source)
     kind = raw.get("type") if isinstance(raw, dict) else None  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
-    model = ScaleProfile if kind == "scale" else PrinterProfile
+    adapter = TypeAdapter[Profile](AnyScaleProfile if kind == "scale" else PrinterProfile)
     try:
-        return model.model_validate(raw)
+        return adapter.validate_python(raw)
     except ValidationError as error:
         raise ConfigError(source, _issues_from(error)) from None
 

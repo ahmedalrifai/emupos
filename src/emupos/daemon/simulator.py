@@ -214,7 +214,9 @@ class Simulator:
         return answer.reply
 
     def _schedule_tick(self, runtime: DeviceRuntime) -> None:
-        """Call the device's `tick` at its next deadline (idle-timeout receipts, scale settling)."""
+        """Call the device at its next deadline: idle-timeout receipts, scale settling, and the
+        weight a scale repeats while a host has asked for a continuous reading.
+        """
         device = runtime.device
         if runtime.timer is not None:
             runtime.timer.cancel()
@@ -222,8 +224,16 @@ class Simulator:
         if isinstance(device, Scanner) or (deadline := device.next_deadline()) is None:
             return
         runtime.timer = asyncio.get_running_loop().call_at(
-            deadline, lambda: self.apply(device.device_id, device.tick(self.now()))
+            deadline, lambda: self.apply(device.device_id, self._elapsed(device))
         )
+
+    def _elapsed(self, device: Printer | Scale) -> Output:
+        """Everything a device has to do now that one of its deadlines has passed."""
+        now = self.now()
+        output = device.tick(now)
+        if isinstance(device, Scale):
+            output += device.due_writes(now)
+        return output
 
     def _spawn(self, coroutine: Coroutine[Any, Any, None]) -> None:
         task = asyncio.ensure_future(coroutine)

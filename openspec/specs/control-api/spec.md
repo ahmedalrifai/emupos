@@ -114,7 +114,7 @@ Every response with a 4xx or 5xx status SHALL have the JSON body `{ "error": { "
 
 ### Requirement: Device listing and description
 
-`GET /api/v1/devices` SHALL return every configured device, and `GET /api/v1/devices/{device_id}` SHALL return one device. Each device description SHALL include `id`, `type`, `profile` (null for a scanner), `connections` (each with its `kind`, `tcp` or `serial`, and its resolved endpoint, including the link path and pseudo-terminal device path for simulator-created serial ports) and `state`. A printer's `state` SHALL contain `faults` (the names of its active faults) and `drawer` (`open` or `closed`). A scale's `state` SHALL contain `grams`, `tare_grams`, `net_grams`, `stable` and `capacity_grams` as defined by the weight-scale capability. A scanner's `state` SHALL contain `mode`, `suffix`, `inter_key_delay_ms` and `typed_by`.
+`GET /api/v1/devices` SHALL return every configured device, and `GET /api/v1/devices/{device_id}` SHALL return one device. Each device description SHALL include `id`, `type`, `profile` (null for a scanner), `connections` (each with its `kind`, `tcp` or `serial`, and its resolved endpoint, including the link path and pseudo-terminal device path for simulator-created serial ports) and `state`. A printer's `state` SHALL contain `faults` (the names of its active faults) and `drawer` (`open` or `closed`). A scale's `state` SHALL contain `grams`, `tare_grams`, `net_grams`, `stable`, `capacity_grams` and `unit` as defined by the weight-scale capability, where `unit` is the three-character abbreviation the scale currently reports weights in, and is null for a scale whose protocol has no unit of measure. A scanner's `state` SHALL contain `mode`, `suffix`, `inter_key_delay_ms` and `typed_by`.
 
 #### Scenario: List devices
 
@@ -135,6 +135,13 @@ Every response with a 4xx or 5xx status SHALL have the JSON body `{ "error": { "
 - **WHEN** a client requests `GET /api/v1/devices/lane1`
 - **THEN** `state.typed_by` is `client`
 - **AND** a scanner configured without `typed_by` reports `server`
+
+#### Scenario: Scale description reports the unit
+
+- **GIVEN** scale `deli` uses profile `sma-15kg`, whose first unit is kilograms
+- **WHEN** a client requests `GET /api/v1/devices/deli`
+- **THEN** `state.unit` is `kg_`
+- **AND** a scale using profile `toledo8217-15kg` reports `state.unit` null
 
 ### Requirement: Printer fault injection
 

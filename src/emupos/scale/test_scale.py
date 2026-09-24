@@ -3,11 +3,11 @@ from importlib import resources
 import pytest
 import yaml
 
-from emupos.config import ScaleProfile
+from emupos.config import Toledo8217Profile
 from emupos.events import Event, EventType, Output, Write
 from emupos.scale.scale import Scale, ScaleInMotionError, ScaleState
 
-PROFILE = ScaleProfile.model_validate(
+PROFILE = Toledo8217Profile.model_validate(
     yaml.safe_load(
         resources.files("emupos").joinpath("profiles/scales/toledo8217-15kg.yaml").read_text()
     )

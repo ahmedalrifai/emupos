@@ -128,6 +128,7 @@ A profile describes a device model. Built-in profiles:
 | `xprinter-xp80t` | printer | 80 mm, 576 dots; Arabic code-page number unverified |
 | `rongta-rp326` | printer | 80 mm, 576 dots, PC720 = 27, PC864 = 22, WPC1256 = 34 |
 | `toledo8217-15kg` | scale | Toledo 8217 protocol, 15 kg × 5 g, 9600 baud 7E1 |
+| `sma-15kg` | scale | SMA protocol, 15 kg × 5 g, kilograms and pounds, 9600 baud 8N1 |
 
 To use your own, set `profile` to a path (any value containing `/` or ending in `.yaml`). Relative paths are resolved from the folder that contains `emupos.yaml`. Start from a copy of a built-in profile in [`src/emupos/profiles/`](https://github.com/ahmedalrifai/emupos/tree/main/src/emupos/profiles).
 
@@ -162,12 +163,28 @@ To use your own, set `profile` to a path (any value containing `/` or ending in 
 |---|---|
 | `type` | `scale` |
 | `name` | Human-readable model name |
-| `protocol` | `toledo8217` |
+| `protocol` | `toledo8217` or `sma`. The keys below it depend on this |
 | `capacity_grams` | Maximum weight |
 | `division_grams` | Resolution of reported weights |
-| `reply_integer_digits`, `reply_decimals` | Format of weight replies in kilograms, e.g. `2` and `3` give `01.250` |
 | `settle_ms` | How long an unstable reading takes to become stable |
 | `serial` | `{ baud, data_bits, parity, stop_bits }` |
+
+With `protocol: toledo8217`:
+
+| Key | Meaning |
+|---|---|
+| `reply_integer_digits`, `reply_decimals` | Format of weight replies in kilograms, e.g. `2` and `3` give `01.250` |
+
+With `protocol: sma` — see [the SMA protocol](protocols/sma.md):
+
+| Key | Meaning |
+|---|---|
+| `units` | The units the scale offers, in the order its unit key cycles them, each `{ unit, decimals, count_by }`. The first is the unit after start |
+| `maker`, `model`, `revision` | What the scale reports in its About dialogue, printable ASCII |
+| `serial_number` | Optional. Reported in the About dialogue when it is set |
+| `repeat_interval_ms` | Optional, default 200. How often `R` and `S` repeat the weight |
+
+A key belonging to the other protocol is a validation error, so a profile cannot quietly carry a setting nothing reads.
 
 ## Security note
 

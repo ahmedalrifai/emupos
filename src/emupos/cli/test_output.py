@@ -12,6 +12,7 @@ import pytest
 from typer.testing import CliRunner
 
 from emupos.cli.app import app
+from emupos.cli.devices import state_text
 from emupos.cli.event_lines import EventLines
 from emupos.cli.output import console
 from emupos.cli.run import ConsoleHandler, control_page
@@ -225,3 +226,23 @@ def test_run_passes_the_page_flag_through(
     result = runner.invoke(app, ["run", *source, "--ui"])
     assert result.exit_code == 0, result.output
     assert served == [True]
+
+
+def scale_device(**state: object) -> dict[str, object]:
+    base = {"grams": 1250, "tare_grams": 0, "net_grams": 1250, "stable": True, "unit": None}
+    return {"id": "deli", "type": "scale", "profile": "sma-15kg", "state": base | state}
+
+
+def test_a_scale_state_line_names_the_unit_it_reports_in() -> None:
+    """Weights are shown in kilograms, so the line says which unit the POS reads."""
+    assert state_text(scale_device(unit="lb_")) == "1.250 kg stable, reporting lb_"
+
+
+def test_a_scale_without_a_unit_says_nothing_about_one() -> None:
+    assert state_text(scale_device()) == "1.250 kg stable"
+
+
+def test_a_tared_scale_line_keeps_its_tare_and_net() -> None:
+    line = state_text(scale_device(tare_grams=200, net_grams=1050, unit="kg_"))
+
+    assert line == "1.250 kg stable, tare 0.200 kg, net 1.050 kg, reporting kg_"
