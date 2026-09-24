@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.0](https://github.com/ahmedalrifai/emupos/compare/v0.3.0...v0.4.0) (2026-09-24)
+
+
+### Features
+
+* **printer:** reply to GS I with the identity in the profile ([#43](https://github.com/ahmedalrifai/emupos/issues/43)) ([727d0fa](https://github.com/ahmedalrifai/emupos/commit/727d0fafdaaec85ea44e1535096e17dc5eab8e3e))
+* **scale:** speak the SMA protocol as well as Toledo 8217 ([#44](https://github.com/ahmedalrifai/emupos/issues/44)) ([149adeb](https://github.com/ahmedalrifai/emupos/commit/149adeb65b3c56014c613bbaa03fbaf28b133ac9))
+* serve a control page with `emupos run --ui` ([#40](https://github.com/ahmedalrifai/emupos/issues/40)) ([c68bc96](https://github.com/ahmedalrifai/emupos/commit/c68bc969b47856853f26cb8d1e328af8ba7f8c9a))
+
 ## [0.3.0](https://github.com/ahmedalrifai/emupos/compare/v0.2.0...v0.3.0) (2026-09-19)
 
 

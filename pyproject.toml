@@ -1,6 +1,6 @@
 [project]
 name = "emupos"
-version = "0.3.0"
+version = "0.4.0"
 description = "Simulate POS hardware (receipt printers, cash drawers, scales, barcode scanners) at the wire-protocol level."
 readme = "README.md"
 license = "Apache-2.0"
